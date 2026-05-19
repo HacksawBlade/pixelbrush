@@ -1,0 +1,10 @@
+.cache/
+.vscode/
+.xmake/
+build/
+release/
+tools/
+
+*.archive.*
+pixelbrush*.zip
+.DS_Store

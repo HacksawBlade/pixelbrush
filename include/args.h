@@ -1,0 +1,40 @@
+#pragma once
+
+#include "argon.h"
+#include "base.hpp"
+#include "render.h"
+
+#include <array>
+#include <span>
+#include <string>
+#include <string_view>
+
+inline constexpr const char *BRUSH_NAMES[] = {
+    "block", "dot", "shades", "symbols", "letters", nullptr,
+};
+
+inline constexpr const char *COLOR_MODE_NAMES[] = {
+    "truecolor", "tty16", "tty256", "grayscale", "blackwhite", nullptr,
+};
+
+inline constexpr auto BRUSHES = std::to_array<std::wstring_view>({
+    L"█",
+    L"⬤",
+    L" ░▒▓█",
+    L" .:-=+*#%@",
+    L" .'`^\",:;Il!i~+_-?][}{1)(\\/,tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+});
+
+class Args
+{
+public:
+    std::wstring       image_path;
+    std::wstring_view  brush{BRUSHES[0]};
+    std::array<int, 2> size{0, 0};
+    double             width_scale{2.0};
+    RenderColorMode    color_mode{RenderColorMode::TrueColor};
+
+    Args() = default;
+
+    [[nodiscard]] static Result<Args> parse(Argon &argon, std::span<wchar_t *> arguments);
+};
