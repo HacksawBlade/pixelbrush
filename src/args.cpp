@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 锯条
+
 #include "args.h"
 
 #include "base.hpp"
