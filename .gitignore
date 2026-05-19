@@ -1,6 +1,7 @@
 .cache/
 .vscode/
 .xmake/
+assets/samples/
 build/
 release/
 tools/
