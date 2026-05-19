@@ -2,6 +2,7 @@ add_rules("mode.debug", "mode.release")
 set_languages("c11", "cxxlatest")
 set_encodings("utf-8")
 add_includedirs("include")
+add_includedirs("vendor/libargon")
 set_warnings("all")
 
 target("pixelbrush")
