@@ -7,38 +7,44 @@
 
 ## 特性
 
-- 24-bit 真彩色 / 256 色灰阶 / 黑白 三种输出模式
+- 多种颜色输出模式
 - 多种笔刷预设
 - 自动适配控制台窗口尺寸
 - 支持重定向输出到文件
 
-> 请确保终端模拟器支持 VT 序列（如 ConEmu、Windows Terminal）。
+> 请确保终端模拟器支持 VT 序列（如 ConEmu、Windows Terminal）。仅限 Windows 平台。
 
 ## 效果
 
-快速绘制高像素照片。
+快速处理高像素照片。
 
-![高像素照片](docs/50mp.png)
+![高像素照片](assets/screenshots/50mp.png)
 
-> 此为终端字符足够小的情况下的效果图。
+> 此为终端字符足够小的情况下的效果图，后不再赘述。
 
 ---
 
 使用可读字符作为笔刷。
 
-![字符模式](docs/letters.png)
+![字符模式](assets/screenshots/letters.png)
 
 ---
 
 通过亮度映射不同的字符，实现特别的黑白视觉效果。黑白模式仅在特定笔刷下正常绘制。
 
-![黑白模式](docs/blackwhite.png)
-
-> 此为终端字符足够小的情况下的效果图。
+![黑白模式](assets/screenshots/blackwhite.png)
 
 ## 构建
 
 使用 [Xmake](https://xmake.io/) 作为构建工具
+
+首次克隆项目后，需要初始化子模块：
+
+```sh
+git submodule update --init --recursive
+```
+
+之后构建只需：
 
 ```sh
 xmake
@@ -47,7 +53,7 @@ xmake
 ## 用法
 
 ```sh
-pixelbrush <image-path> [OPTIONS]
+pixelbrush <IMAGE-PATH> [OPTIONS]
 ```
 
 直接运行 `pixelbrush` 以查看完整的参数列表。
@@ -55,7 +61,9 @@ pixelbrush <image-path> [OPTIONS]
 ### 笔刷
 
 ```sh
-pixelbrush --brush <brush-name>
+# 两种写法皆可
+pixelbrush -b <BRUSH-NAME>
+pixelbrush --brush <BRUSH-NAME>
 ```
 
 | 名称            | 黑白模式 | 效果           |
@@ -68,42 +76,42 @@ pixelbrush --brush <brush-name>
 
 具有亮度映射功能的笔刷在真彩模式下的输出亮度略暗，但具备正常渲染纯黑白绘画的能力。
 
-### 黑白
+### 颜色模式
 
 ```sh
-pixelbrush --blackwhite
+pixelbrush -c <MODE>
+# 或
+pixelbrush --color <MODE>
 ```
 
-根据像素亮度选择笔刷中的字符，具有特别的高对比度显示效果。仅支持部分笔刷。
-
-### 灰度
-
-```sh
-pixelbrush --grayscale
-```
-
-无彩色模式。根据像素亮度映射不同的灰色，比纯黑白模式兼容性更好的方案，显示效果也更为柔和。
+| 模式值       | 说明                                       | 示例图                                     |
+| ------------ | ------------------------------------------ | ------------------------------------------ |
+| `truecolor`  | 24-bit 真彩色（默认）                      |                                            |
+| `tty16`      | 经典16色，从用户的终端颜色主题中取色       | ![TTY16](assets/screenshots/tty16.png)     |
+| `tty256`     | 终端 256 色模式                            | ![TTY256](assets/screenshots/tty256.png)   |
+| `grayscale`  | 灰阶模式，使用不同亮度的无彩色展现画面信息 | ![灰阶](assets/screenshots/grayscale.png)  |
+| `blackwhite` | 黑白模式，具有独特的高对比度               | ![黑白](assets/screenshots/blackwhite.png) |
 
 ### 宽度缩放
 
-众所周知，终端中一个字符的长宽比因平台和设备的不同而不确定。若以“一个字符对应一个像素点”为前提进行像素画生成，实际效果就好像图片被拉伸了一样。考虑到当前相当数量的终端为“两个字符近似一个正方形”的情况，`pixelbrush` 内部设置的「宽度缩放」系数默认为 2. 若用户的设备在这个系数下生成的绘画变形，则可 通过 `--wscale <FLOAT>` 进行系数设置，支持任意浮点数。
+终端中一个字符的长宽比因平台和设备的不同而不确定。若以“一个字符对应一个像素点”为前提进行像素画生成，实际效果就好像图片被拉伸了一样。`pixelbrush` 默认假设当前终端“两个字符近似一个正方形”，内部设置的「宽度缩放」系数默认即为 **2.0**. 若用户的设备在这个系数下生成的绘画变形，可通过 `-w <FLOAT>` 或 `--wscale <FLOAT>` 进行系数设置，支持任意浮点数。
 
 ### 尺寸设置
 
-在终端输出模式下，会根据用户终端的画面空间，以尽量不拉伸、不裁剪为要求自动计算需要输出的图片尺寸。若需要手动设置输出尺寸，使用 `--size <W> <H>` 进行配置。其中，宽度的指定需要考虑到「宽度缩放」系数。如，在默认的宽度系数为 2 的情况下，绘制不变形的、常见的 4:3 比例的照片（假定需要输出 400 $\times$ 300），需要输入 `--size 800 300` (400 * 2 = 800).
+在终端输出模式下，会根据用户终端的画面空间，以尽量不拉伸、不裁剪为要求自动计算需要输出的图片尺寸。若需要手动设置输出尺寸，使用 `-s <W> <H>` 或 `--size <W> <H>` 进行配置。其中，宽度的指定需要考虑到「宽度缩放」系数。如，在默认的宽度系数为 2 的情况下，绘制不变形的、常见的 4:3 比例的照片（假定需要输出 400 $\times$ 300），需要输入 `--size 800 300` (400 * 2 = 800).
 
 ### 输出到文件
 
 ```sh
-pixelbrush <image-path> > out.txt
+pixelbrush <IMAGE-PATH> > out.txt
 ```
 
-通过 `>` 符号将输出重定向到文件。虽然支持输出重定向，但 `pixelbrush` 不会进行针对性优化，文件中会包含大量 ANSI 控制序列，也会根据图片的原始尺寸生成像素画——这样的文件体积往往十分巨大。因此，推荐使用 `--blackwhite` 模式进行作画，因为这样不会生成任何控制序列；同时设置支持黑白模式的笔刷；最后还建议使用 `--size` 手动指定输出尺寸，以免文件体积失控。
+通过 `>` 符号将输出重定向到文件。虽然支持输出重定向，但 `pixelbrush` 不会进行针对性优化，文件中会包含大量 ANSI 控制序列，也会根据图片的原始尺寸生成像素画——这样的文件体积往往十分巨大。因此，推荐使用 `--color blackwhite` 模式进行作画，因为这样不会生成任何控制序列；同时设置支持黑白模式的笔刷；最后还建议使用 `--size` 手动指定输出尺寸，以免文件体积失控。
 
 ## 示例
 
 ```bash
-pixelbrush photo.jpg --brush block --grayscale
-pixelbrush image.png -b symbol --size 80 40
-pixelbrush photo.bmp --blackwhite > output.txt
+pixelbrush photo.jpg -b block --color grayscale
+pixelbrush image.png -b symbols --size 80 40
+pixelbrush photo.bmp --color blackwhite > output.txt
 ```
