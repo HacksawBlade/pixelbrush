@@ -51,7 +51,10 @@ catch (const winrt::hresult_error &e)
                             strutil::to_narrow(e.message())));
 }
 
-static auto
+namespace
+{
+
+auto
 wic_scale(ScaleMode scale_mode) -> WICBitmapInterpolationMode
 {
     switch (scale_mode)
@@ -62,6 +65,8 @@ wic_scale(ScaleMode scale_mode) -> WICBitmapInterpolationMode
         return WICBitmapInterpolationModeNearestNeighbor;
     }
     std::unreachable();
+}
+
 }
 
 auto

@@ -22,7 +22,10 @@ static constexpr std::ptrdiff_t BUF_PAD{8};
 static constexpr auto SEQ_NLINE{L"\r\n"sv};
 static constexpr auto SEQ_RESET{L"\x1b[0m\r\n"sv};
 
-[[nodiscard]] static inline auto
+namespace
+{
+
+[[nodiscard]] inline auto
 map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
 {
     std::size_t qr = (r * (TTY16_QUANT_LEVEL - 1)) / 255;
@@ -32,7 +35,7 @@ map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
                         (qg * TTY16_QUANT_LEVEL) + qb);
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
 {
     std::size_t qr = (r * (TTY256_QUANT_LEVEL - 1)) / 255;
@@ -40,6 +43,8 @@ map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
     std::size_t qb = (b * (TTY256_QUANT_LEVEL - 1)) / 255;
     return TTY256_MAP.at((qr * TTY256_QUANT_LEVEL * TTY256_QUANT_LEVEL) +
                          (qg * TTY256_QUANT_LEVEL) + qb);
+}
+
 }
 
 auto
