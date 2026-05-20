@@ -97,12 +97,12 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
 
     if (p_color_mode)
     {
-        std::string_view mode{p_color_mode};
-        if (mode == "truecolor"sv) args.color_mode = RenderColorMode::TrueColor;
-        else if (mode == "tty16"sv) args.color_mode = RenderColorMode::TTY16;
-        else if (mode == "tty256"sv) args.color_mode = RenderColorMode::TTY256;
-        else if (mode == "grayscale"sv) args.color_mode = RenderColorMode::Grayscale;
-        else if (mode == "blackwhite"sv) args.color_mode = RenderColorMode::BlackWhite;
+        std::span<const char *const> span_color_modes{COLOR_MODE_NAMES};
+        if (auto it = std::ranges::find(span_color_modes, p_color_mode);
+            it != span_color_modes.end())
+        {
+            args.color_mode = static_cast<RenderColorMode>(it - span_color_modes.begin());
+        }
     }
 
     return args;
