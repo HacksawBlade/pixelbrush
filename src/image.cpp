@@ -19,8 +19,8 @@ using namespace winrt::Windows::Storage::Streams;
 using namespace winrt::Windows::Graphics::Imaging;
 using namespace winrt::Windows::Foundation;
 
-Result<Image>
-Image::open(const std::wstring &path)
+auto
+Image::open(const std::wstring &path) -> Result<Image>
 try
 {
     auto fullpath = fsutil::abspath(path);
@@ -51,8 +51,8 @@ catch (const winrt::hresult_error &e)
                             strutil::to_narrow(e.message())));
 }
 
-static WICBitmapInterpolationMode
-wic_scale(ScaleMode scale_mode)
+static auto
+wic_scale(ScaleMode scale_mode) -> WICBitmapInterpolationMode
 {
     switch (scale_mode)
     {
@@ -64,8 +64,8 @@ wic_scale(ScaleMode scale_mode)
     std::unreachable();
 }
 
-Result<void>
-Image::scale(std::uint32_t new_w, std::uint32_t new_h)
+auto
+Image::scale(std::uint32_t new_w, std::uint32_t new_h) -> Result<void>
 {
     if (new_w == 0 || new_h == 0)
         return fail(ErrCode::InvalidValue,
@@ -108,45 +108,45 @@ Image::scale(std::uint32_t new_w, std::uint32_t new_h)
     return {};
 }
 
-std::uint32_t
-Image::width() const
+auto
+Image::width() const -> std::uint32_t
 {
     return width_;
 }
 
-std::uint32_t
-Image::height() const
+auto
+Image::height() const -> std::uint32_t
 {
     return height_;
 }
 
-std::span<std::uint8_t>
-Image::pixels()
+auto
+Image::pixels() -> std::span<std::uint8_t>
 {
     return {pixels_.data(), pixels_.size()};
 }
 
-std::span<const std::uint8_t>
-Image::pixels() const
+auto
+Image::pixels() const -> std::span<const std::uint8_t>
 {
     return {pixels_.data(), pixels_.size()};
 }
 
-ScaleMode
-Image::scale_mode()
+auto
+Image::scale_mode() -> ScaleMode
 {
     return scale_mode_;
 }
 
-ScaleMode
-Image::scale_mode(ScaleMode new_scale_mode)
+auto
+Image::scale_mode(ScaleMode new_scale_mode) -> ScaleMode
 {
     scale_mode_ = new_scale_mode;
     return scale_mode_;
 }
 
-ScaleMode
-Image::scale_mode() const
+auto
+Image::scale_mode() const -> ScaleMode
 {
     return scale_mode_;
 }

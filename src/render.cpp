@@ -22,8 +22,8 @@ static constexpr std::ptrdiff_t BUF_PAD{8};
 static constexpr auto SEQ_NLINE{L"\r\n"sv};
 static constexpr auto SEQ_RESET{L"\x1b[0m\r\n"sv};
 
-[[nodiscard]] static inline std::uint8_t
-map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b)
+[[nodiscard]] static inline auto
+map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
 {
     std::size_t qr = (r * (TTY16_QUANT_LEVEL - 1)) / 255;
     std::size_t qg = (g * (TTY16_QUANT_LEVEL - 1)) / 255;
@@ -32,8 +32,8 @@ map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b)
                         (qg * TTY16_QUANT_LEVEL) + qb);
 }
 
-[[nodiscard]] static inline std::uint8_t
-map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b)
+[[nodiscard]] static inline auto
+map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
 {
     std::size_t qr = (r * (TTY256_QUANT_LEVEL - 1)) / 255;
     std::size_t qg = (g * (TTY256_QUANT_LEVEL - 1)) / 255;
@@ -42,8 +42,8 @@ map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b)
                          (qg * TTY256_QUANT_LEVEL) + qb);
 }
 
-Result<void>
-render_ascii_art(const RenderOpts &opts)
+auto
+render_ascii_art(const RenderOpts &opts) -> Result<void>
 {
     if (!opts.target || opts.target == INVALID_HANDLE_VALUE)
         return fail(ErrCode::InvalidValue, "Invalid render target handle");

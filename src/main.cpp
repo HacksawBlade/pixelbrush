@@ -14,12 +14,12 @@
 
 static constexpr auto ERROR_PREFIX = "\x1b[1;37;41m ERROR \x1b[0m";
 
-int
-wmain(int argc, wchar_t *argv[])
+auto
+wmain(int argc, wchar_t *argv[]) -> int
 {
     winrt::init_apartment();
     console::CpGuard cp_guard{};
-    (void) std::atexit([] { winrt::uninit_apartment(); });
+    (void) std::atexit([] -> void { winrt::uninit_apartment(); });
 
     Argon argon{};
     auto  args = Args::parse(argon, std::span(argv, argc));

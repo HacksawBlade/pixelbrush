@@ -12,8 +12,8 @@ CpGuard::CpGuard() : saved_(GetConsoleOutputCP()) { SetConsoleOutputCP(CP_UTF8);
 
 CpGuard::~CpGuard() { SetConsoleOutputCP(saved_); }
 
-Result<void>
-init(HANDLE &handle)
+auto
+init(HANDLE &handle) -> Result<void>
 {
     if (handle == INVALID_HANDLE_VALUE)
         return fail(ErrCode::CantGetHandle, "Invalid console handle");
@@ -31,8 +31,8 @@ init(HANDLE &handle)
     return {};
 }
 
-Result<std::pair<int, int>>
-get_size(HANDLE handle)
+auto
+get_size(HANDLE handle) -> Result<std::pair<int, int>>
 {
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (handle == INVALID_HANDLE_VALUE)

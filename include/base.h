@@ -48,8 +48,8 @@ fail(Args &&...args)
     return std::unexpected<Error>(std::in_place, std::forward<Args>(args)...);
 }
 
-[[nodiscard]] inline std::string
-last_system_errmsg()
+[[nodiscard]] inline auto
+last_system_errmsg() -> std::string
 {
     return std::system_category().message(static_cast<int>(GetLastError()));
 }

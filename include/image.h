@@ -31,14 +31,14 @@ private:
 public:
     Image() = delete;
 
-    [[nodiscard]] static Result<Image> open(const std::wstring &path);
+    [[nodiscard]] static auto open(const std::wstring &path) -> Result<Image>;
 
-    [[nodiscard]] Result<void>            scale(std::uint32_t new_w, std::uint32_t new_h);
-    [[nodiscard]] std::uint32_t           width() const;
-    [[nodiscard]] std::uint32_t           height() const;
-    [[nodiscard]] std::span<std::uint8_t> pixels();
-    [[nodiscard]] std::span<const std::uint8_t> pixels() const;
-    [[nodiscard]] ScaleMode                     scale_mode();
-    [[nodiscard]] ScaleMode                     scale_mode(ScaleMode new_scale_mode);
-    [[nodiscard]] ScaleMode                     scale_mode() const;
+    [[nodiscard]] auto scale(std::uint32_t new_w, std::uint32_t new_h) -> Result<void>;
+    [[nodiscard]] auto width() const -> std::uint32_t;
+    [[nodiscard]] auto height() const -> std::uint32_t;
+    [[nodiscard]] auto pixels() -> std::span<std::uint8_t>;
+    [[nodiscard]] auto pixels() const -> std::span<const std::uint8_t>;
+    [[nodiscard]] auto scale_mode() -> ScaleMode;
+    [[nodiscard]] auto scale_mode(ScaleMode new_scale_mode) -> ScaleMode;
+    [[nodiscard]] auto scale_mode() const -> ScaleMode;
 };

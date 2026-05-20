@@ -39,5 +39,6 @@ public:
 
     Args() = default;
 
-    [[nodiscard]] static Result<Args> parse(Argon &argon, std::span<wchar_t *> arguments);
+    [[nodiscard]] static auto parse(Argon &argon, std::span<wchar_t *> arguments)
+        -> Result<Args>;
 };

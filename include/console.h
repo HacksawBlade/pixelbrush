@@ -22,13 +22,13 @@ public:
     CpGuard();
     ~CpGuard();
 
-    CpGuard(const CpGuard &)            = delete;
-    CpGuard(CpGuard &&)                 = delete;
-    CpGuard &operator=(CpGuard &&)      = delete;
-    CpGuard &operator=(const CpGuard &) = delete;
+    CpGuard(const CpGuard &)                     = delete;
+    CpGuard(CpGuard &&)                          = delete;
+    auto operator=(CpGuard &&) -> CpGuard &      = delete;
+    auto operator=(const CpGuard &) -> CpGuard & = delete;
 };
 
-[[nodiscard]] Result<void>                init(HANDLE &handle);
-[[nodiscard]] Result<std::pair<int, int>> get_size(HANDLE handle);
+[[nodiscard]] auto init(HANDLE &handle) -> Result<void>;
+[[nodiscard]] auto get_size(HANDLE handle) -> Result<std::pair<int, int>>;
 
 }

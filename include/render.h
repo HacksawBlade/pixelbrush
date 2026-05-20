@@ -27,4 +27,4 @@ struct RenderOpts
     RenderColorMode               color_mode{RenderColorMode::TrueColor};
 };
 
-[[nodiscard]] Result<void> render_ascii_art(const RenderOpts &opts);
+[[nodiscard]] auto render_ascii_art(const RenderOpts &opts) -> Result<void>;
