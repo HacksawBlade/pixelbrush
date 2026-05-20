@@ -54,4 +54,4 @@ last_system_errmsg()
     return std::system_category().message(static_cast<int>(GetLastError()));
 }
 
-inline constexpr std::uint8_t IMAGE_PIXEL_BYTE{4}; // BRGA
+inline constexpr std::uint8_t IMAGE_PIXEL_BYTE{4}; // BGRA

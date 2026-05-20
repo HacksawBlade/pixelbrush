@@ -3,8 +3,8 @@
 
 #include "args.h"
 
-#include "base.hpp"
-#include "utils.hpp"
+#include "base.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <array>

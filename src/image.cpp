@@ -3,8 +3,8 @@
 
 #include "image.h"
 
-#include "base.hpp"
-#include "utils.hpp"
+#include "base.h"
+#include "utils.h"
 
 #include <cstdint>
 #include <utility>

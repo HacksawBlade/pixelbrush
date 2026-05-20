@@ -3,7 +3,7 @@
 
 #include "render.h"
 
-#include "base.hpp"
+#include "base.h"
 #include "tty_maps.h"
 
 #include <algorithm>
