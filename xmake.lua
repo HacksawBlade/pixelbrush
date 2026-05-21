@@ -10,6 +10,11 @@ target("pixelbrush")
     add_files("src/*.c")
     add_files("src/*.cpp")
     add_syslinks("WindowsApp", "Ole32", "windowscodecs")
+    set_default(true)
+
+target("gen_tty_maps")
+    set_kind("binary")
+    add_files("tools/gen_tty_maps.cpp")
 
 task("build-all")
     set_menu {
