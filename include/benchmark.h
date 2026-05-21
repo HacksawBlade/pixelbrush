@@ -41,7 +41,7 @@ class CsvWriter
     std::ofstream ofs_;
 
 public:
-    explicit CsvWriter(const std::string &path) : ofs_(path) {}
+    explicit CsvWriter(const std::string &path) : ofs_{path} {}
 
     auto
     header(const std::string &cols) -> void
