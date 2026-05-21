@@ -9,8 +9,10 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
-#include <format>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #ifdef BENCH_RENDER
@@ -45,6 +47,50 @@ map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
     std::size_t qb = (b * (TTY256_QUANT_LEVEL - 1)) / 255;
     return TTY256_MAP.at((qr * TTY256_QUANT_LEVEL * TTY256_QUANT_LEVEL) +
                          (qg * TTY256_QUANT_LEVEL) + qb);
+}
+
+[[nodiscard]] inline auto
+format_u8(std::span<wchar_t> buf, std::uint8_t v) -> std::ptrdiff_t
+{
+    if (v >= 100)
+    {
+        auto [huns, rem]  = std::div(v, 100);
+        auto [tens, ones] = std::div(rem, 10);
+        buf[0]            = L'0' + huns;
+        buf[1]            = L'0' + tens;
+        buf[2]            = L'0' + ones;
+        return 3;
+    }
+    if (v >= 10)
+    {
+        auto [tens, ones] = std::div(v, 10);
+        buf[0]            = L'0' + tens;
+        buf[1]            = L'0' + ones;
+        return 2;
+    }
+    buf[0] = L'0' + v;
+    return 1;
+}
+
+template <typename... Args>
+    requires(std::same_as<std::decay_t<Args>, std::uint8_t> && ...)
+[[nodiscard]] auto
+format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... args)
+    -> std::ptrdiff_t
+{
+    std::ptrdiff_t written{0};
+    buf_span[written++] = L'\x1b';
+    buf_span[written++] = L'[';
+
+    std::ranges::copy(prefix, buf_span.begin() + written);
+    written += static_cast<std::ptrdiff_t>(prefix.size());
+
+    bool sep = false;
+    ((sep ? (buf_span[written++] = L';', 0) : 0,
+      written += format_u8(buf_span.subspan(written), args), sep = true),
+     ...);
+    buf_span[written++] = L'm';
+    return written;
 }
 
 }
@@ -119,34 +165,25 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
             }
             else
             {
+                std::span<wchar_t> buf_span(&render_buf[pos], max_line_chars - pos);
                 switch (opts.color_mode)
                 {
                 case RenderColorMode::TrueColor:
-                    color_len = static_cast<std::ptrdiff_t>(
-                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                         L"\x1b[38;2;{};{};{}m", r, g, b)
-                            .size);
+                    color_len = format_ansi_seq(buf_span, L"38;2;", r, g, b);
                     break;
                 case RenderColorMode::TTY16:
-                    color_len = static_cast<std::ptrdiff_t>(
-                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                         L"\x1b[{}m", map_to_tty16(r, g, b))
-                            .size);
+                    color_len = format_ansi_seq(buf_span, L"", map_to_tty16(r, g, b));
                     break;
                 case RenderColorMode::TTY256:
-                    color_len = static_cast<std::ptrdiff_t>(
-                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                         L"\x1b[38;5;{}m", map_to_tty256(r, g, b))
-                            .size);
+                    color_len =
+                        format_ansi_seq(buf_span, L"38;5;", map_to_tty256(r, g, b));
                     break;
                 case RenderColorMode::Grayscale:
                 {
                     int gray_code{GRAY_BASE + static_cast<int>(lum * GRAY_STEPS)};
                     gray_code = (std::min) (gray_code, 255);
-                    color_len = static_cast<std::ptrdiff_t>(
-                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                         L"\x1b[38;5;{}m", gray_code)
-                            .size);
+                    color_len = format_ansi_seq(buf_span, L"38;5;",
+                                                static_cast<std::uint8_t>(gray_code));
                     break;
                 }
                 case RenderColorMode::BlackWhite:
