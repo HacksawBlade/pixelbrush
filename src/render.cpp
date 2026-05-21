@@ -9,8 +9,13 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <format>
 #include <vector>
+
+#ifdef BENCH_RENDER
+    #include "benchmark.h"
+#endif
 
 using namespace std::string_view_literals;
 
@@ -62,6 +67,11 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     auto max_line_chars{(static_cast<std::ptrdiff_t>(opts.width * MAX_ESC_LEN)) +
                         tail_len + BUF_PAD};
     std::vector<wchar_t> render_buf(max_line_chars);
+#ifdef BENCH_RENDER
+    bench::Timer  t{};
+    double        bench_calc{0}, bench_format{0}, bench_io{0};
+    std::uint64_t bench_cache_hit{0}, bench_cache_miss{0};
+#endif
 
     if (!to_console)
     {
@@ -75,8 +85,14 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                                IMAGE_PIXEL_BYTE};
 
         std::ptrdiff_t pos{0};
+        std::uint8_t   prev_r{0}, prev_g{0}, prev_b{0};
+        std::ptrdiff_t prev_color_len{0};
+
         for (std::uint32_t x = 0; x < opts.width; x++)
         {
+#ifdef BENCH_RENDER
+            t.start();
+#endif
             std::size_t  idx{src_offset +
                              (static_cast<std::size_t>(x) * IMAGE_PIXEL_BYTE)};
             std::uint8_t b{opts.pixels[idx]};
@@ -88,47 +104,82 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                 (std::min) (static_cast<std::size_t>(
                                 lum * static_cast<double>(opts.brush.size() - 1)),
                             opts.brush.size() - 1);
-            wchar_t brush_chr{opts.brush[brush_idx]};
-
+            wchar_t        brush_chr{opts.brush[brush_idx]};
             std::ptrdiff_t color_len{0};
-            switch (opts.color_mode)
+#ifdef BENCH_RENDER
+            t.stop();
+            bench_calc += t.elapsed_us;
+            t.start();
+#endif
+            if (opts.color_mode != RenderColorMode::BlackWhite && r == prev_r &&
+                g == prev_g && b == prev_b && prev_color_len > 0)
             {
-            case RenderColorMode::TrueColor:
-                color_len = static_cast<std::ptrdiff_t>(
-                    std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                     L"\x1b[38;2;{};{};{}m", r, g, b)
-                        .size);
-                break;
-            case RenderColorMode::TTY16:
-                color_len = static_cast<std::ptrdiff_t>(
-                    std::format_to_n(&render_buf[pos], max_line_chars - pos, L"\x1b[{}m",
-                                     map_to_tty16(r, g, b))
-                        .size);
-                break;
-            case RenderColorMode::TTY256:
-                color_len = static_cast<std::ptrdiff_t>(
-                    std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                     L"\x1b[38;5;{}m", map_to_tty256(r, g, b))
-                        .size);
-                break;
-            case RenderColorMode::Grayscale:
-            {
-                int gray_code{GRAY_BASE + static_cast<int>(lum * GRAY_STEPS)};
-                gray_code = (std::min) (gray_code, 255);
-                color_len = static_cast<std::ptrdiff_t>(
-                    std::format_to_n(&render_buf[pos], max_line_chars - pos,
-                                     L"\x1b[38;5;{}m", gray_code)
-                        .size);
-                break;
+                std::ranges::copy_n(&render_buf[pos - prev_color_len - 1], prev_color_len,
+                                    &render_buf[pos]);
+                color_len = prev_color_len;
+#ifdef BENCH_RENDER
+                bench_cache_hit++;
+#endif
             }
-            case RenderColorMode::BlackWhite:
-                break;
+            else
+            {
+                switch (opts.color_mode)
+                {
+                case RenderColorMode::TrueColor:
+                    color_len = static_cast<std::ptrdiff_t>(
+                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
+                                         L"\x1b[38;2;{};{};{}m", r, g, b)
+                            .size);
+                    break;
+                case RenderColorMode::TTY16:
+                    color_len = static_cast<std::ptrdiff_t>(
+                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
+                                         L"\x1b[{}m", map_to_tty16(r, g, b))
+                            .size);
+                    break;
+                case RenderColorMode::TTY256:
+                    color_len = static_cast<std::ptrdiff_t>(
+                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
+                                         L"\x1b[38;5;{}m", map_to_tty256(r, g, b))
+                            .size);
+                    break;
+                case RenderColorMode::Grayscale:
+                {
+                    int gray_code{GRAY_BASE + static_cast<int>(lum * GRAY_STEPS)};
+                    gray_code = (std::min) (gray_code, 255);
+                    color_len = static_cast<std::ptrdiff_t>(
+                        std::format_to_n(&render_buf[pos], max_line_chars - pos,
+                                         L"\x1b[38;5;{}m", gray_code)
+                            .size);
+                    break;
+                }
+                case RenderColorMode::BlackWhite:
+                    break;
+                }
+
+                if (opts.color_mode != RenderColorMode::BlackWhite)
+                {
+                    prev_r         = r;
+                    prev_g         = g;
+                    prev_b         = b;
+                    prev_color_len = color_len;
+#ifdef BENCH_RENDER
+                    bench_cache_miss++;
+#endif
+                }
             }
 
             pos += color_len;
             if (pos < max_line_chars) render_buf[pos++] = brush_chr;
+#ifdef BENCH_RENDER
+            t.stop();
+            bench_format += t.elapsed_us;
+#endif
         }
 
+#ifdef BENCH_RENDER
+        t.start();
+#endif
         if (pos + tail_len < max_line_chars)
         {
             std::ranges::copy(tail, render_buf.begin() + pos);
@@ -146,7 +197,24 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
             WriteFile(opts.target, render_buf.data(),
                       static_cast<DWORD>(pos * sizeof(wchar_t)), nullptr, nullptr);
         }
+#ifdef BENCH_RENDER
+        t.stop();
+        bench_io += t.elapsed_us;
+#endif
     }
-
+#ifdef BENCH_RENDER
+    static bench::CsvWriter csv("bench_render.csv");
+    static bool             csv_header{false};
+    if (!csv_header)
+    {
+        csv.header("width,height,pixels,color_mode,calc_us,format_us,io_us,total_us,"
+                   "cache_hit,cache_miss");
+        csv_header = true;
+    }
+    csv.rowf("{},{},{},{},{:.1f},{:.1f},{:.1f},{:.1f},{},{}", opts.width, opts.height,
+             static_cast<std::size_t>(opts.width) * opts.height,
+             static_cast<int>(opts.color_mode), bench_calc, bench_format, bench_io,
+             bench_calc + bench_format + bench_io, bench_cache_hit, bench_cache_miss);
+#endif
     return {};
 }
