@@ -24,9 +24,6 @@ static constexpr int            GRAY_BASE{232};
 static constexpr int            GRAY_STEPS{23};
 static constexpr std::ptrdiff_t BUF_PAD{8};
 
-static constexpr auto SEQ_NLINE{L"\r\n"sv};
-static constexpr auto SEQ_RESET{L"\x1b[0m\r\n"sv};
-
 namespace
 {
 
@@ -60,12 +57,11 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     if (opts.pixels.empty() || opts.brush.empty() || opts.width == 0 || opts.height == 0)
         return fail(ErrCode::InvalidValue, "Invalid render parameters");
 
-    bool              to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
-    std::wstring_view tail{opts.color_mode == RenderColorMode::BlackWhite ? SEQ_NLINE
-                                                                          : SEQ_RESET};
-    auto              tail_len{static_cast<std::ptrdiff_t>(tail.size())};
+    static constexpr auto SEQ_NLINE{L"\r\n"sv};
+    bool                  to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
+    auto constexpr NLINE_LEN{static_cast<std::ptrdiff_t>(SEQ_NLINE.size())};
     auto max_line_chars{(static_cast<std::ptrdiff_t>(opts.width * MAX_ESC_LEN)) +
-                        tail_len + BUF_PAD};
+                        NLINE_LEN + BUF_PAD};
     std::vector<wchar_t> render_buf(max_line_chars);
 #ifdef BENCH_RENDER
     bench::Timer  t{};
@@ -180,10 +176,10 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
 #ifdef BENCH_RENDER
         t.start();
 #endif
-        if (pos + tail_len < max_line_chars)
+        if (pos + NLINE_LEN < max_line_chars)
         {
-            std::ranges::copy(tail, render_buf.begin() + pos);
-            pos += tail_len;
+            std::ranges::copy(SEQ_NLINE, render_buf.begin() + pos);
+            pos += NLINE_LEN;
         }
         render_buf[pos] = 0;
 
@@ -196,6 +192,18 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
         {
             WriteFile(opts.target, render_buf.data(),
                       static_cast<DWORD>(pos * sizeof(wchar_t)), nullptr, nullptr);
+        }
+
+        static constexpr std::wstring_view RESET_SEQ{L"\x1b[0m"};
+        if (opts.color_mode != RenderColorMode::BlackWhite)
+        {
+            if (to_console)
+                WriteConsoleW(opts.target, RESET_SEQ.data(),
+                              static_cast<DWORD>(RESET_SEQ.size()), nullptr, nullptr);
+            else
+                WriteFile(opts.target, RESET_SEQ.data(),
+                          static_cast<DWORD>(RESET_SEQ.size() * sizeof(wchar_t)), nullptr,
+                          nullptr);
         }
 #ifdef BENCH_RENDER
         t.stop();
