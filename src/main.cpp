@@ -19,7 +19,6 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
 {
     winrt::init_apartment();
     console::CpGuard cp_guard{};
-    (void) std::atexit([] -> void { winrt::uninit_apartment(); });
 
     Argon argon{};
     auto  args = Args::parse(argon, std::span(argv, argc));
