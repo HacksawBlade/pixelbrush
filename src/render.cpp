@@ -34,8 +34,7 @@ namespace
 
 template <std::size_t QuantLevel, std::size_t N>
 [[nodiscard]] inline auto
-map_to_tty_impl(std::uint8_t r, std::uint8_t g, std::uint8_t b,
-                const std::array<std::uint8_t, N> &map) -> std::uint8_t
+map_to_tty_impl(u8 r, u8 g, u8 b, const std::array<u8, N> &map) -> u8
 {
     std::size_t qr{(r * (QuantLevel - 1)) / 255};
     std::size_t qg{(g * (QuantLevel - 1)) / 255};
@@ -44,19 +43,19 @@ map_to_tty_impl(std::uint8_t r, std::uint8_t g, std::uint8_t b,
 }
 
 [[nodiscard]] inline auto
-map_to_tty16(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
+map_to_tty16(u8 r, u8 g, u8 b) -> u8
 {
     return map_to_tty_impl<TTY16_QUANT_LEVEL>(r, g, b, TTY16_MAP);
 }
 
 [[nodiscard]] inline auto
-map_to_tty256(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> std::uint8_t
+map_to_tty256(u8 r, u8 g, u8 b) -> u8
 {
     return map_to_tty_impl<TTY256_QUANT_LEVEL>(r, g, b, TTY256_MAP);
 }
 
 [[nodiscard]] inline auto
-format_u8(std::span<wchar_t> buf, std::uint8_t v) -> std::ptrdiff_t
+format_u8(std::span<wchar_t> buf, u8 v) -> std::ptrdiff_t
 {
     if (v == 0)
     {
@@ -70,13 +69,13 @@ format_u8(std::span<wchar_t> buf, std::uint8_t v) -> std::ptrdiff_t
         temp.at(i--) = L'0' + (v % 10);
         v /= 10;
     }
-    std::ptrdiff_t len = 3 - i;
+    std::ptrdiff_t len{3 - i};
     std::ranges::copy_n(&temp.at(i + 1), len, buf.begin());
     return len;
 }
 
 template <typename... Args>
-    requires(std::same_as<std::decay_t<Args>, std::uint8_t> && ...)
+    requires(std::same_as<std::decay_t<Args>, u8> && ...)
 [[nodiscard]] auto
 format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... args)
     -> std::ptrdiff_t
@@ -98,9 +97,9 @@ format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... a
 
 struct CacheEntry
 {
-    std::uint32_t key{0xFFFFFFFF}; // RGB(255, 0, 128) -> 255000128
-    std::uint16_t len{0};          // ANSI 序列内容长度，使用 16 位消除类型转换警告
-    wchar_t       seq[MAX_ESC_LEN]{};
+    u32     key{0xFFFFFFFF}; // RGB(255, 0, 128) -> 255000128
+    u16     len{0};          // ANSI 序列内容长度，使用 16 位消除类型转换警告
+    wchar_t seq[MAX_ESC_LEN]{};
 };
 
 }
@@ -130,9 +129,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     std::vector<CacheEntry>      cache(1 << CACHE_N_LOG2);
 
 #ifdef BENCH_RENDER
-    bench::Timer  t_io{}, t_other{};
-    double        bench_io{0}, bench_calc{0}, bench_format{0};
-    std::uint64_t bench_cache_hit{0}, bench_cache_miss{0};
+    bench::Timer t_io{}, t_other{};
+    double       bench_io{0}, bench_calc{0}, bench_format{0};
+    u64          bench_cache_hit{0}, bench_cache_miss{0};
 #endif
 
     std::jthread io_thread(
@@ -144,8 +143,8 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                 WriteFile(opts.target, &BOM_UTF16, sizeof(BOM_UTF16), nullptr, nullptr);
             }
 
-            std::uint8_t p_read{0};
-            for (std::uint32_t y{0}; y < opts.height; y++)
+            u8 p_read{0};
+            for (u32 y{0}; y < opts.height; y++)
             {
                 sem_filled.acquire();
                 auto row_buf =
@@ -181,26 +180,26 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
 
     using PixelExtents = std::extents<std::size_t, std::dynamic_extent,
                                       std::dynamic_extent, IMAGE_PIXEL_BYTE>;
-    auto px = std::mdspan<const std::uint8_t, PixelExtents>{opts.pixels.data(),
-                                                            opts.height, opts.width};
+    auto px =
+        std::mdspan<const u8, PixelExtents>{opts.pixels.data(), opts.height, opts.width};
 
-    std::uint8_t p_write{0};
-    for (std::uint32_t y{0}; y < opts.height; y++)
+    u8 p_write{0};
+    for (u32 y{0}; y < opts.height; y++)
     {
         auto &render_buf = render_bufs.at(p_write);
         sem_empty.acquire();
 
         std::ptrdiff_t pos{0};
-        for (std::uint32_t x{0}; x < opts.width; x++)
+        for (u32 x{0}; x < opts.width; x++)
         {
 #ifdef BENCH_RENDER
             t_other.start();
 #endif
 
-            std::uint8_t b = px[y, x, 0];
-            std::uint8_t g = px[y, x, 1];
-            std::uint8_t r = px[y, x, 2];
-            double       lum{((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255};
+            u8     b = px[y, x, 0];
+            u8     g = px[y, x, 1];
+            u8     r = px[y, x, 2];
+            double lum{((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255}; // BT.709
 
             auto brush_idx = static_cast<std::size_t>(
                 lum * static_cast<double>(opts.brush.size() - 1));
@@ -215,8 +214,7 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
 
             if (opts.color_mode != RenderColorMode::BlackWhite)
             {
-                auto key = (static_cast<std::uint32_t>(r) << 16) |
-                           (static_cast<std::uint32_t>(g) << 8) | b;
+                auto key = (static_cast<u32>(r) << 16) | (static_cast<u32>(g) << 8) | b;
                 // 0x9E3779B1: Donald Knuth 黄金分割哈希
                 auto  hash_idx = (key * 0x9E3779B1) >> (32 - CACHE_N_LOG2);
                 auto &entry    = cache.at(hash_idx);
@@ -247,7 +245,7 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                         break;
                     case RenderColorMode::Grayscale:
                     {
-                        std::uint8_t gray_code =
+                        u8 gray_code =
                             std::clamp(GRAY_BASE + static_cast<int>(lum * GRAY_STEPS),
                                        GRAY_BASE, 255);
                         color_len = format_ansi_seq(buf_span, L"38;5;", gray_code);
@@ -258,7 +256,7 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                     }
 
                     entry.key = key;
-                    entry.len = static_cast<std::uint16_t>(color_len);
+                    entry.len = static_cast<u16>(color_len);
                     std::ranges::copy_n(&render_buf[pos], color_len,
                                         static_cast<wchar_t *>(entry.seq));
 #ifdef BENCH_RENDER

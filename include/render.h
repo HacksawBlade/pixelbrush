@@ -8,7 +8,7 @@
 #include <span>
 #include <string_view>
 
-enum class RenderColorMode : std::uint8_t
+enum class RenderColorMode : u8
 {
     TrueColor,
     TTY16,
@@ -19,12 +19,12 @@ enum class RenderColorMode : std::uint8_t
 
 struct RenderOpts
 {
-    HANDLE                        target;
-    std::span<const std::uint8_t> pixels;
-    std::uint32_t                 width;
-    std::uint32_t                 height;
-    std::wstring_view             brush;
-    RenderColorMode               color_mode{RenderColorMode::TrueColor};
+    HANDLE              target;
+    std::span<const u8> pixels;
+    u32                 width;
+    u32                 height;
+    std::wstring_view   brush;
+    RenderColorMode     color_mode{RenderColorMode::TrueColor};
 };
 
 [[nodiscard]] auto render_ascii_art(const RenderOpts &opts) -> Result<void>;

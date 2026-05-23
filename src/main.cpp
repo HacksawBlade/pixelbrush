@@ -66,8 +66,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         return EXIT_FAILURE;
     }
 
-    std::uint32_t image_width{image->width()};
-    std::uint32_t image_height{image->height()};
+    u32 image_width{image->width()};
+    u32 image_height{image->height()};
 
     int target_width{0};
     int target_height{0};
@@ -100,8 +100,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         }
     }
 
-    auto scale_result = image->scale(static_cast<std::uint32_t>(target_width),
-                                     static_cast<std::uint32_t>(target_height));
+    auto scale_result =
+        image->scale(static_cast<u32>(target_width), static_cast<u32>(target_height));
     if (!scale_result)
     {
         std::println(stderr, "{} {}", ERROR_PREFIX, scale_result.error().message);

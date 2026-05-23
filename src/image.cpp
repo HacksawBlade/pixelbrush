@@ -39,8 +39,8 @@ try
             .get();
     auto pixel_data = provider.DetachPixelData();
 
-    std::uint32_t w{frame.PixelWidth()};
-    std::uint32_t h{frame.PixelHeight()};
+    u32 w{frame.PixelWidth()};
+    u32 h{frame.PixelHeight()};
 
     return Image{w, h, std::move(pixel_data)};
 }
@@ -70,7 +70,7 @@ wic_scale(ScaleMode scale_mode) -> WICBitmapInterpolationMode
 }
 
 auto
-Image::scale(std::uint32_t new_w, std::uint32_t new_h) -> Result<void>
+Image::scale(u32 new_w, u32 new_h) -> Result<void>
 {
     if (new_w == 0 || new_h == 0)
         return fail(ErrCode::InvalidValue,
@@ -114,25 +114,25 @@ Image::scale(std::uint32_t new_w, std::uint32_t new_h) -> Result<void>
 }
 
 auto
-Image::width() const -> std::uint32_t
+Image::width() const -> u32
 {
     return width_;
 }
 
 auto
-Image::height() const -> std::uint32_t
+Image::height() const -> u32
 {
     return height_;
 }
 
 auto
-Image::pixels() -> std::span<std::uint8_t>
+Image::pixels() -> std::span<u8>
 {
     return {pixels_.data(), pixels_.size()};
 }
 
 auto
-Image::pixels() const -> std::span<const std::uint8_t>
+Image::pixels() const -> std::span<const u8>
 {
     return {pixels_.data(), pixels_.size()};
 }

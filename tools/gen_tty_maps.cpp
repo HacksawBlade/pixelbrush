@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 锯条
 
+#include "base.h"
+
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <fstream>
 #include <limits>
@@ -35,7 +36,7 @@ lab_cbrt(double x) -> double
 }
 
 auto
-rgb_to_lab(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> Lab
+rgb_to_lab(u8 r, u8 g, u8 b) -> Lab
 {
     double rr{srgb_to_linear(r / 255.0)};
     double gg{srgb_to_linear(g / 255.0)};
@@ -66,7 +67,7 @@ rgb_to_lab(std::uint8_t r, std::uint8_t g, std::uint8_t b) -> Lab
 constexpr auto
 generate_standard_palette()
 {
-    std::array<std::array<std::uint8_t, 3>, 256> table{};
+    std::array<std::array<u8, 3>, 256> table{};
 
     table[0]  = {0, 0, 0};
     table[1]  = {128, 0, 0};
@@ -90,18 +91,15 @@ generate_standard_palette()
             for (int b{0}; b < 6; b++)
             {
                 int idx{16 + (r * 36) + (g * 6) + b};
-                table.at(idx)[0] =
-                    static_cast<std::uint8_t>(r == 0 ? 0 : 95 + ((r - 1) * 40));
-                table.at(idx)[1] =
-                    static_cast<std::uint8_t>(g == 0 ? 0 : 95 + ((g - 1) * 40));
-                table.at(idx)[2] =
-                    static_cast<std::uint8_t>(b == 0 ? 0 : 95 + ((b - 1) * 40));
+                table.at(idx)[0] = static_cast<u8>(r == 0 ? 0 : 95 + ((r - 1) * 40));
+                table.at(idx)[1] = static_cast<u8>(g == 0 ? 0 : 95 + ((g - 1) * 40));
+                table.at(idx)[2] = static_cast<u8>(b == 0 ? 0 : 95 + ((b - 1) * 40));
             }
 
     for (int i{0}; i < 24; i++)
     {
         int  idx{232 + i};
-        auto val      = static_cast<std::uint8_t>(8 + (i * 10));
+        auto val      = static_cast<u8>(8 + (i * 10));
         table.at(idx) = {val, val, val};
     }
 
@@ -119,7 +117,7 @@ static constexpr std::size_t TTY256_MAP_SIZE{TTY256_QUANT_LEVEL * TTY256_QUANT_L
 
 static constexpr auto TTY16_PALETTE = []() -> auto
 {
-    std::array<std::array<std::uint8_t, 3>, 16> table{};
+    std::array<std::array<u8, 3>, 16> table{};
     table[0]  = {0, 0, 0};
     table[1]  = {128, 0, 0};
     table[2]  = {0, 128, 0};
@@ -158,7 +156,7 @@ main() -> int
             TTY256_PALETTE.at(i)[0], TTY256_PALETTE.at(i)[1], TTY256_PALETTE.at(i)[2]);
     }
 
-    std::array<std::uint8_t, TTY16_MAP_SIZE> tty16_map{};
+    std::array<u8, TTY16_MAP_SIZE> tty16_map{};
 
     for (std::size_t qr{0}; qr < TTY16_QUANT_LEVEL; qr++)
         for (std::size_t qg{0}; qg < TTY16_QUANT_LEVEL; qg++)
@@ -168,12 +166,11 @@ main() -> int
                 int g{static_cast<int>(qg * 255U / (TTY16_QUANT_LEVEL - 1))};
                 int b{static_cast<int>(qb * 255U / (TTY16_QUANT_LEVEL - 1))};
 
-                Lab input_lab{rgb_to_lab(static_cast<std::uint8_t>(r),
-                                         static_cast<std::uint8_t>(g),
-                                         static_cast<std::uint8_t>(b))};
+                Lab input_lab{rgb_to_lab(static_cast<u8>(r), static_cast<u8>(g),
+                                         static_cast<u8>(b))};
 
                 int best_idx{0};
-                int best_dist{std::numeric_limits<int>::max()};
+                int best_dist{(std::numeric_limits<int>::max)()};
 
                 for (int i{0}; i < 16; i++)
                 {
@@ -192,11 +189,10 @@ main() -> int
 
                 int ansi_code{best_idx < 8 ? 30 + best_idx : 90 + best_idx - 8};
                 tty16_map.at((qr * TTY16_QUANT_LEVEL * TTY16_QUANT_LEVEL) +
-                             (qg * TTY16_QUANT_LEVEL) + qb) =
-                    static_cast<std::uint8_t>(ansi_code);
+                             (qg * TTY16_QUANT_LEVEL) + qb) = static_cast<u8>(ansi_code);
             }
 
-    std::array<std::uint8_t, TTY256_MAP_SIZE> tty256_map{};
+    std::array<u8, TTY256_MAP_SIZE> tty256_map{};
 
     for (std::size_t qr{0}; qr < TTY256_QUANT_LEVEL; qr++)
         for (std::size_t qg{0}; qg < TTY256_QUANT_LEVEL; qg++)
@@ -206,12 +202,11 @@ main() -> int
                 int g{static_cast<int>(qg * 255U / (TTY256_QUANT_LEVEL - 1))};
                 int b{static_cast<int>(qb * 255U / (TTY256_QUANT_LEVEL - 1))};
 
-                Lab input_lab{rgb_to_lab(static_cast<std::uint8_t>(r),
-                                         static_cast<std::uint8_t>(g),
-                                         static_cast<std::uint8_t>(b))};
+                Lab input_lab{rgb_to_lab(static_cast<u8>(r), static_cast<u8>(g),
+                                         static_cast<u8>(b))};
 
                 int best_idx{0};
-                int best_dist{std::numeric_limits<int>::max()};
+                int best_dist{(std::numeric_limits<int>::max)()};
 
                 for (std::size_t i{0}; i < 256; i++)
                 {
@@ -229,8 +224,7 @@ main() -> int
                 }
 
                 tty256_map.at((qr * TTY256_QUANT_LEVEL * TTY256_QUANT_LEVEL) +
-                              (qg * TTY256_QUANT_LEVEL) + qb) =
-                    static_cast<std::uint8_t>(best_idx);
+                              (qg * TTY256_QUANT_LEVEL) + qb) = static_cast<u8>(best_idx);
             }
 
     std::ofstream ofs{"include/tty_maps.h"};
@@ -241,9 +235,10 @@ main() -> int
     ofs << "\n";
     ofs << "#pragma once\n";
     ofs << "\n";
+    ofs << "#include \"base.h\"\n";
+    ofs << "\n";
     ofs << "#include <array>\n";
     ofs << "#include <cstddef>\n";
-    ofs << "#include <cstdint>\n";
     ofs << "\n";
 
     ofs << std::format("inline constexpr std::size_t TTY16_QUANT_LEVEL{{{}}};\n",
@@ -256,7 +251,7 @@ main() -> int
                        TTY256_MAP_SIZE);
     ofs << "\n";
 
-    ofs << "inline constexpr std::array<std::uint8_t, TTY16_MAP_SIZE> TTY16_MAP{{\n";
+    ofs << "inline constexpr std::array<u8, TTY16_MAP_SIZE> TTY16_MAP{{\n";
 
     for (std::size_t i{0}; i < TTY16_MAP_SIZE; i++)
     {
@@ -266,7 +261,7 @@ main() -> int
     ofs << "}};\n";
     ofs << "\n";
 
-    ofs << "inline constexpr std::array<std::uint8_t, TTY256_MAP_SIZE> TTY256_MAP{{\n";
+    ofs << "inline constexpr std::array<u8, TTY256_MAP_SIZE> TTY256_MAP{{\n";
 
     for (std::size_t i{0}; i < TTY256_MAP_SIZE; i++)
     {

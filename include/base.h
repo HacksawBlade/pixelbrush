@@ -9,7 +9,16 @@
 #include <string>
 #include <system_error>
 
-enum class ErrCode : std::uint8_t
+using i8  = std::int8_t;
+using u8  = std::uint8_t;
+using i16 = std::int16_t;
+using u16 = std::uint16_t;
+using i32 = std::int32_t;
+using u32 = std::uint32_t;
+using i64 = std::int64_t;
+using u64 = std::uint64_t;
+
+enum class ErrCode : u8
 {
     Success,
     MissingArgs,
@@ -54,4 +63,4 @@ last_system_errmsg() -> std::string
     return std::system_category().message(static_cast<int>(GetLastError()));
 }
 
-inline constexpr std::uint8_t IMAGE_PIXEL_BYTE{4}; // BGRA
+inline constexpr u8 IMAGE_PIXEL_BYTE{4}; // BGRA

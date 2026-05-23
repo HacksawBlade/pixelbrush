@@ -5,11 +5,10 @@
 
 #include "base.h"
 
-#include <cstdint>
 #include <span>
 #include <winrt/base.h>
 
-enum class ScaleMode : std::uint8_t
+enum class ScaleMode : u8
 {
     Fant,
     NearestNeighbor,
@@ -18,12 +17,12 @@ enum class ScaleMode : std::uint8_t
 class Image
 {
 private:
-    std::uint32_t                  width_{0};
-    std::uint32_t                  height_{0};
-    winrt::com_array<std::uint8_t> pixels_;
-    ScaleMode                      scale_mode_{ScaleMode::Fant};
+    u32                  width_{0};
+    u32                  height_{0};
+    winrt::com_array<u8> pixels_;
+    ScaleMode            scale_mode_{ScaleMode::Fant};
 
-    Image(std::uint32_t w, std::uint32_t h, winrt::com_array<std::uint8_t> data)
+    Image(u32 w, u32 h, winrt::com_array<u8> data)
         : width_{w}, height_{h}, pixels_{std::move(data)}
     {
     }
@@ -33,11 +32,11 @@ public:
 
     [[nodiscard]] static auto open(const std::wstring &path) -> Result<Image>;
 
-    [[nodiscard]] auto scale(std::uint32_t new_w, std::uint32_t new_h) -> Result<void>;
-    [[nodiscard]] auto width() const -> std::uint32_t;
-    [[nodiscard]] auto height() const -> std::uint32_t;
-    [[nodiscard]] auto pixels() -> std::span<std::uint8_t>;
-    [[nodiscard]] auto pixels() const -> std::span<const std::uint8_t>;
+    [[nodiscard]] auto scale(u32 new_w, u32 new_h) -> Result<void>;
+    [[nodiscard]] auto width() const -> u32;
+    [[nodiscard]] auto height() const -> u32;
+    [[nodiscard]] auto pixels() -> std::span<u8>;
+    [[nodiscard]] auto pixels() const -> std::span<const u8>;
     [[nodiscard]] auto scale_mode() -> ScaleMode;
     [[nodiscard]] auto scale_mode(ScaleMode new_scale_mode) -> ScaleMode;
     [[nodiscard]] auto scale_mode() const -> ScaleMode;

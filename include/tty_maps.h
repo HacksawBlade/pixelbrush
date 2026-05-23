@@ -3,23 +3,24 @@
 
 #pragma once
 
+#include "base.h"
+
 #include <array>
 #include <cstddef>
-#include <cstdint>
 
 inline constexpr std::size_t TTY16_QUANT_LEVEL{4};
 inline constexpr std::size_t TTY256_QUANT_LEVEL{16};
 inline constexpr std::size_t TTY16_MAP_SIZE{64};
 inline constexpr std::size_t TTY256_MAP_SIZE{4096};
 
-inline constexpr std::array<std::uint8_t, TTY16_MAP_SIZE> TTY16_MAP{{
+inline constexpr std::array<u8, TTY16_MAP_SIZE> TTY16_MAP{{
     30, 34, 34, 94, 32, 36, 34, 34, 32, 32, 36, 36, 92, 92, 96, 96,
     31, 35, 34, 94, 33, 90, 35, 34, 32, 32, 36, 37, 92, 92, 96, 96,
     31, 35, 35, 95, 31, 31, 35, 95, 33, 33, 37, 37, 92, 92, 96, 96,
     91, 91, 35, 95, 91, 91, 35, 95, 33, 33, 37, 35, 93, 93, 97, 97,
 }};
 
-inline constexpr std::array<std::uint8_t, TTY256_MAP_SIZE> TTY256_MAP{{
+inline constexpr std::array<u8, TTY256_MAP_SIZE> TTY256_MAP{{
     0,   0,   0,   17,  17,  17,  17,  4,   18,  18,  19,  19,  20,  20,  12,  12,  232,
     233, 233, 233, 17,  17,  17,  17,  4,   18,  19,  19,  20,  20,  20,  12,  234, 234,
     234, 234, 235, 25,  17,  17,  17,  4,   18,  19,  19,  20,  20,  12,  22,  23,  236,
