@@ -96,6 +96,13 @@ format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... a
     return written;
 }
 
+struct CacheEntry
+{
+    std::uint32_t key{0xFFFFFFFF}; // RGB(255, 0, 128) -> 255000128
+    std::uint16_t len{0};          // ANSI 序列内容长度，使用 16 位消除类型转换警告
+    wchar_t       seq[MAX_ESC_LEN]{};
+};
+
 }
 
 auto
@@ -109,7 +116,7 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     static constexpr std::wstring_view SEQ_NLINE{L"\r\n"};
     static constexpr std::ptrdiff_t    SEQ_NLINE_LEN{SEQ_NLINE.size()};
     const bool to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
-    auto       max_line_chars{(opts.width * MAX_ESC_LEN) + SEQ_NLINE_LEN + BUF_PAD};
+    const auto max_line_chars{(opts.width * MAX_ESC_LEN) + SEQ_NLINE_LEN + BUF_PAD};
 
     std::array<std::vector<wchar_t>, 2> render_bufs{{
         std::vector<wchar_t>(max_line_chars),
@@ -118,6 +125,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     std::array<std::ptrdiff_t, 2>       row_lens{};    // 缓冲区内容的实际长度
     std::counting_semaphore<2>          sem_empty{2};  // 缓冲区空闲数量
     std::counting_semaphore<2>          sem_filled{0}; // 缓冲区填满数量
+
+    static constexpr std::size_t CACHE_N_LOG2{16};
+    std::vector<CacheEntry>      cache(1 << CACHE_N_LOG2);
 
 #ifdef BENCH_RENDER
     bench::Timer  t_io{}, t_other{};
@@ -181,9 +191,6 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
         sem_empty.acquire();
 
         std::ptrdiff_t pos{0};
-        std::uint8_t   prev_r{0}, prev_g{0}, prev_b{0};
-        std::ptrdiff_t prev_color_len{0};
-
         for (std::uint32_t x{0}; x < opts.width; x++)
         {
 #ifdef BENCH_RENDER
@@ -206,49 +213,54 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
             t_other.start();
 #endif
 
-            if (opts.color_mode != RenderColorMode::BlackWhite && r == prev_r &&
-                g == prev_g && b == prev_b && prev_color_len > 0)
+            if (opts.color_mode != RenderColorMode::BlackWhite)
             {
-                std::ranges::copy_n(&render_buf[pos - prev_color_len - 1], prev_color_len,
-                                    &render_buf[pos]);
-                color_len = prev_color_len;
+                auto key = (static_cast<std::uint32_t>(r) << 16) |
+                           (static_cast<std::uint32_t>(g) << 8) | b;
+                // 0x9E3779B1: Donald Knuth 黄金分割哈希
+                auto  hash_idx = (key * 0x9E3779B1) >> (32 - CACHE_N_LOG2);
+                auto &entry    = cache.at(hash_idx);
+
+                if (entry.key == key)
+                {
+                    std::ranges::copy_n(static_cast<wchar_t *>(entry.seq), entry.len,
+                                        &render_buf[pos]);
+                    color_len = static_cast<std::ptrdiff_t>(entry.len);
 #ifdef BENCH_RENDER
-                bench_cache_hit++;
+                    bench_cache_hit++;
 #endif
-            }
-            else
-            {
-                std::span<wchar_t> buf_span(&render_buf[pos], max_line_chars - pos);
-                switch (opts.color_mode)
-                {
-                case RenderColorMode::TrueColor:
-                    color_len = format_ansi_seq(buf_span, L"38;2;", r, g, b);
-                    break;
-                case RenderColorMode::TTY16:
-                    color_len = format_ansi_seq(buf_span, L"", map_to_tty16(r, g, b));
-                    break;
-                case RenderColorMode::TTY256:
-                    color_len =
-                        format_ansi_seq(buf_span, L"38;5;", map_to_tty256(r, g, b));
-                    break;
-                case RenderColorMode::Grayscale:
-                {
-                    std::uint8_t gray_code = std::clamp(
-                        GRAY_BASE + static_cast<int>(lum * GRAY_STEPS), GRAY_BASE, 255);
-                    color_len = format_ansi_seq(buf_span, L"38;5;", gray_code);
-                    break;
                 }
-                case RenderColorMode::BlackWhite:
-                    break;
-                }
-
-                if (opts.color_mode != RenderColorMode::BlackWhite)
+                else
                 {
-                    prev_r         = r;
-                    prev_g         = g;
-                    prev_b         = b;
-                    prev_color_len = color_len;
+                    std::span<wchar_t> buf_span(&render_buf[pos], max_line_chars - pos);
+                    switch (opts.color_mode)
+                    {
+                    case RenderColorMode::TrueColor:
+                        color_len = format_ansi_seq(buf_span, L"38;2;", r, g, b);
+                        break;
+                    case RenderColorMode::TTY16:
+                        color_len = format_ansi_seq(buf_span, L"", map_to_tty16(r, g, b));
+                        break;
+                    case RenderColorMode::TTY256:
+                        color_len =
+                            format_ansi_seq(buf_span, L"38;5;", map_to_tty256(r, g, b));
+                        break;
+                    case RenderColorMode::Grayscale:
+                    {
+                        std::uint8_t gray_code =
+                            std::clamp(GRAY_BASE + static_cast<int>(lum * GRAY_STEPS),
+                                       GRAY_BASE, 255);
+                        color_len = format_ansi_seq(buf_span, L"38;5;", gray_code);
+                        break;
+                    }
+                    case RenderColorMode::BlackWhite:
+                        break;
+                    }
 
+                    entry.key = key;
+                    entry.len = static_cast<std::uint16_t>(color_len);
+                    std::ranges::copy_n(&render_buf[pos], color_len,
+                                        static_cast<wchar_t *>(entry.seq));
 #ifdef BENCH_RENDER
                     bench_cache_miss++;
 #endif
