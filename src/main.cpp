@@ -6,6 +6,7 @@
 #include "console.h"
 #include "image.h"
 #include "render.h"
+#include "utils.h"
 
 #include <cstdlib>
 #include <print>
@@ -30,18 +31,26 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         return EXIT_FAILURE;
     }
 
-    HANDLE     handle{GetStdHandle(STD_OUTPUT_HANDLE)};
+    HANDLE handle{args->output_path.empty()
+                      ? GetStdHandle(STD_OUTPUT_HANDLE)
+                      : CreateFileW(args->output_path.c_str(), GENERIC_WRITE, 0, nullptr,
+                                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+        std::println(stderr, "{} Failed to get output handle: {}", ERROR_PREFIX,
+                     strutil::to_narrow(args->output_path));
+        return EXIT_FAILURE;
+    }
     const bool to_console{GetFileType(handle) == FILE_TYPE_CHAR};
 
-    int term_cols{CONSOLE_DEFAULT_COLS};
-    int term_rows{CONSOLE_DEFAULT_ROWS};
+    u16 term_cols{CONSOLE_DEFAULT_COLS};
+    u16 term_rows{CONSOLE_DEFAULT_ROWS};
     if (to_console)
     {
-        auto r = console::init(handle);
-        if (!r)
+        if (auto cinit_result = console::init(handle); !cinit_result)
         {
-            std::println(stderr, "{} {}", ERROR_PREFIX, r.error().message);
-            if (r.error().code == ErrCode::CantGetHandle) return EXIT_FAILURE;
+            std::println(stderr, "{} {}", ERROR_PREFIX, cinit_result.error().message);
+            if (cinit_result.error().code == ErrCode::CantGetHandle) return EXIT_FAILURE;
         }
         else
         {
@@ -69,8 +78,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
     u32 image_width{image->width()};
     u32 image_height{image->height()};
 
-    int target_width{0};
-    int target_height{0};
+    u32 target_width{0};
+    u32 target_height{0};
     if (args->size[0] > 0 && args->size[1] > 0)
     {
         target_width  = args->size[0];
@@ -78,8 +87,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
     }
     else
     {
-        target_width  = static_cast<int>(image_width * args->width_scale);
-        target_height = static_cast<int>(static_cast<double>(image_height) *
+        target_width  = static_cast<u32>(image_width * args->width_scale);
+        target_height = static_cast<u32>(static_cast<double>(image_height) *
                                          target_width / image_width / args->width_scale);
 
         if (to_console)
@@ -88,7 +97,7 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
             {
                 target_width = term_cols;
                 target_height =
-                    static_cast<int>(static_cast<double>(image_height) * target_width /
+                    static_cast<u32>(static_cast<double>(image_height) * target_width /
                                      image_width / args->width_scale);
             }
 
@@ -100,25 +109,23 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         }
     }
 
-    auto scale_result =
-        image->scale(static_cast<u32>(target_width), static_cast<u32>(target_height));
-    if (!scale_result)
+    if (auto scale_result = image->scale(target_width, target_height); !scale_result)
     {
         std::println(stderr, "{} {}", ERROR_PREFIX, scale_result.error().message);
         return EXIT_FAILURE;
     }
 
-    RenderOpts render_opts = {
-        .target     = handle,
-        .pixels     = image->pixels(),
-        .width      = image->width(),
-        .height     = image->height(),
-        .brush      = args->brush,
-        .color_mode = args->color_mode,
+    RenderOpts render_opts{
+        .target        = handle,
+        .pixels        = image->pixels(),
+        .width         = image->width(),
+        .height        = image->height(),
+        .brush         = args->brush,
+        .color_mode    = args->color_mode,
+        .output_format = args->output_format,
     };
 
-    auto render_result = render_ascii_art(render_opts);
-    if (!render_result)
+    if (auto render_result = render_ascii_art(render_opts); !render_result)
     {
         std::println(stderr, "{} {}", ERROR_PREFIX, render_result.error().message);
         return EXIT_FAILURE;

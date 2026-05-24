@@ -23,6 +23,8 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
     char       *p_image_path{nullptr};
     const char *p_brush_name{nullptr};
     const char *p_color_mode{nullptr};
+    const char *p_output_path{nullptr};
+    const char *p_output_format{nullptr};
 
     static auto opts = std::to_array<ArgonOption>({
         {
@@ -59,6 +61,21 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
             .desc        = "Set color output mode. (default: truecolor)",
             .target      = static_cast<void *>(&p_color_mode),
             .enum_plugin = {.enums = static_cast<const char *const *>(COLOR_MODE_NAMES)},
+        },
+        {
+            .fullname = "output",
+            .alias    = 'o',
+            .type     = ARGON_OPTYPE_STRREF,
+            .desc     = "Output to file instead of console",
+            .target   = static_cast<void *>(&p_output_path),
+        },
+        {
+            .fullname    = "format",
+            .alias       = 'f',
+            .type        = ARGON_OPTYPE_STRREF,
+            .desc        = "Output file format (default: UTF16LE)",
+            .target      = static_cast<void *>(&p_output_format),
+            .enum_plugin = {.enums = static_cast<const char *const *>(OUTFMT_NAMES)},
         },
         {nullptr},
     });
@@ -102,6 +119,22 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
             it != span_color_modes.end())
         {
             args.color_mode = static_cast<RenderColorMode>(it - span_color_modes.begin());
+        }
+    }
+
+    if (p_output_format && !p_output_path)
+        return fail(ErrCode::InvalidArgs, "option '--format' requires '--output'");
+
+    if (p_output_path) args.output_path = strutil::to_wide(p_output_path);
+
+    if (p_output_format)
+    {
+        std::span<const char *const> span_output_formats{OUTFMT_NAMES};
+        if (auto it = std::ranges::find(span_output_formats, p_output_format);
+            it != span_output_formats.end())
+        {
+            args.output_format =
+                static_cast<OutputFormat>(it - span_output_formats.begin());
         }
     }
 

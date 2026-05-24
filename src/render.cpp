@@ -5,6 +5,7 @@
 
 #include "base.h"
 #include "tty_maps.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <array>
@@ -137,9 +138,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     std::jthread io_thread(
         [&]() -> void
         {
-            if (!to_console)
+            if (!to_console && opts.output_format == OutputFormat::UTF16LE)
             {
-                static constexpr uint16_t BOM_UTF16{0xFEFF};
+                static constexpr u16 BOM_UTF16{0xFEFF};
                 WriteFile(opts.target, &BOM_UTF16, sizeof(BOM_UTF16), nullptr, nullptr);
             }
 
@@ -155,11 +156,35 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
 #endif
 
                 if (to_console)
+                {
                     WriteConsoleW(opts.target, row_buf.data(),
                                   static_cast<DWORD>(row_buf.size()), nullptr, nullptr);
+                }
                 else
-                    WriteFile(opts.target, row_buf.data(),
-                              static_cast<DWORD>(row_buf.size_bytes()), nullptr, nullptr);
+                {
+                    switch (opts.output_format)
+                    {
+                    case OutputFormat::UTF8:
+                    {
+                        auto utf8_data = strutil::to_narrow(
+                            std::wstring_view{row_buf.data(), row_buf.size()});
+                        if (!utf8_data.empty())
+                        {
+                            WriteFile(opts.target, utf8_data.data(),
+                                      static_cast<DWORD>(utf8_data.size()), nullptr,
+                                      nullptr);
+                        }
+                        break;
+                    }
+                    case OutputFormat::UTF16LE:
+                    {
+                        WriteFile(opts.target, row_buf.data(),
+                                  static_cast<DWORD>(row_buf.size() * sizeof(wchar_t)),
+                                  nullptr, nullptr);
+                        break;
+                    }
+                    }
+                }
 
 #ifdef BENCH_RENDER
                 t_io.stop();
@@ -196,9 +221,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
             t_other.start();
 #endif
 
-            u8     b = px[y, x, 0];
-            u8     g = px[y, x, 1];
-            u8     r = px[y, x, 2];
+            u8     b{px[y, x, 0]};
+            u8     g{px[y, x, 1]};
+            u8     r{px[y, x, 2]};
             double lum{((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255}; // BT.709
 
             auto brush_idx = static_cast<std::size_t>(
@@ -246,7 +271,7 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                     case RenderColorMode::Grayscale:
                     {
                         u8 gray_code =
-                            std::clamp(GRAY_BASE + static_cast<int>(lum * GRAY_STEPS),
+                            std::clamp(static_cast<int>(GRAY_BASE + (lum * GRAY_STEPS)),
                                        GRAY_BASE, 255);
                         color_len = format_ansi_seq(buf_span, L"38;5;", gray_code);
                         break;

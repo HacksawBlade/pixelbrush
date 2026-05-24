@@ -17,6 +17,12 @@ enum class RenderColorMode : u8
     BlackWhite,
 };
 
+enum class OutputFormat : u8
+{
+    UTF8,
+    UTF16LE,
+};
+
 struct RenderOpts
 {
     HANDLE              target;
@@ -25,6 +31,7 @@ struct RenderOpts
     u32                 height;
     std::wstring_view   brush;
     RenderColorMode     color_mode{RenderColorMode::TrueColor};
+    OutputFormat        output_format{OutputFormat::UTF16LE};
 };
 
 [[nodiscard]] auto render_ascii_art(const RenderOpts &opts) -> Result<void>;

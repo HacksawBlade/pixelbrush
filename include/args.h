@@ -20,6 +20,12 @@ inline constexpr const char *COLOR_MODE_NAMES[] = {
     "truecolor", "tty16", "tty256", "grayscale", "blackwhite", nullptr,
 };
 
+inline constexpr const char *OUTFMT_NAMES[] = {
+    "UTF8",
+    "UTF16LE",
+    nullptr,
+};
+
 inline constexpr auto BRUSHES = std::to_array<std::wstring_view>({
     L"█",
     L"⬤",
@@ -36,6 +42,8 @@ public:
     std::array<int, 2> size{0, 0};
     double             width_scale{2.0};
     RenderColorMode    color_mode{RenderColorMode::TrueColor};
+    std::wstring       output_path;
+    OutputFormat       output_format{OutputFormat::UTF16LE};
 
     Args() = default;
 
