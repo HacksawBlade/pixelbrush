@@ -7,8 +7,8 @@
 
 #include <utility>
 
-inline constexpr int CONSOLE_DEFAULT_COLS{80};
-inline constexpr int CONSOLE_DEFAULT_ROWS{40};
+inline constexpr u16 CONSOLE_DEFAULT_COLS{80};
+inline constexpr u16 CONSOLE_DEFAULT_ROWS{40};
 
 namespace console
 {
@@ -29,6 +29,6 @@ public:
 };
 
 [[nodiscard]] auto init(HANDLE &handle) -> Result<void>;
-[[nodiscard]] auto get_size(HANDLE handle) -> Result<std::pair<int, int>>;
+[[nodiscard]] auto get_size(HANDLE handle) -> Result<std::pair<u16, u16>>;
 
 }

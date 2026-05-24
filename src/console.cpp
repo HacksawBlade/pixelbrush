@@ -3,6 +3,10 @@
 
 #include "console.h"
 
+#include "base.h"
+
+#include <algorithm>
+#include <cstdint>
 #include <format>
 
 namespace console
@@ -32,7 +36,7 @@ init(HANDLE &handle) -> Result<void>
 }
 
 auto
-get_size(HANDLE handle) -> Result<std::pair<int, int>>
+get_size(HANDLE handle) -> Result<std::pair<u16, u16>>
 {
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (handle == INVALID_HANDLE_VALUE)
@@ -40,11 +44,13 @@ get_size(HANDLE handle) -> Result<std::pair<int, int>>
 
     if (!GetConsoleScreenBufferInfo(handle, &info))
         return fail(ErrCode::ConsoleOps,
-                    std::format("Failed to get console screen buffer info (code={})",
-                                GetLastError()));
+                    std::format("Failed to get console screen buffer info ({})",
+                                last_system_errmsg()));
 
-    int cols{info.srWindow.Right - info.srWindow.Left + 1};
-    int rows{info.srWindow.Bottom - info.srWindow.Top + 1};
+    u16 cols{static_cast<u16>(std::clamp(info.srWindow.Right - info.srWindow.Left + 1, 0,
+                                         static_cast<int>(UINT16_MAX)))};
+    u16 rows{static_cast<u16>(std::clamp(info.srWindow.Bottom - info.srWindow.Top + 1, 0,
+                                         static_cast<int>(UINT16_MAX)))};
     return std::pair{cols, rows};
 }
 
