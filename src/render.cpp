@@ -103,16 +103,10 @@ struct CacheEntry
     wchar_t seq[MAX_ESC_LEN]{};
 };
 
-}
-
-auto
-render_ascii_art(const RenderOpts &opts) -> Result<void>
+[[nodiscard]] auto
+render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
+                      std::size_t cache_n_log2) -> Result<void>
 {
-    if (!opts.target || opts.target == INVALID_HANDLE_VALUE)
-        return fail(ErrCode::InvalidValue, "Invalid render target handle");
-    if (opts.pixels.empty() || opts.brush.empty() || opts.width == 0 || opts.height == 0)
-        return fail(ErrCode::InvalidValue, "Invalid render parameters");
-
     static constexpr std::wstring_view SEQ_NLINE{L"\r\n"};
     static constexpr std::ptrdiff_t    SEQ_NLINE_LEN{SEQ_NLINE.size()};
     const bool to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
@@ -122,12 +116,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
         std::vector<wchar_t>(max_line_chars),
         std::vector<wchar_t>(max_line_chars),
     }};
-    std::array<std::ptrdiff_t, 2>       row_lens{};    // 缓冲区内容的实际长度
-    std::counting_semaphore<2>          sem_empty{2};  // 缓冲区空闲数量
-    std::counting_semaphore<2>          sem_filled{0}; // 缓冲区填满数量
-
-    static constexpr std::size_t CACHE_N_LOG2{16};
-    std::vector<CacheEntry>      cache(1 << CACHE_N_LOG2);
+    std::array<std::ptrdiff_t, 2>       row_lens{};
+    std::counting_semaphore<2>          sem_empty{2};
+    std::counting_semaphore<2>          sem_filled{0};
 
 #ifdef BENCH_RENDER
     bench::Timer t_io{}, t_other{};
@@ -241,8 +232,8 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
             {
                 auto key = (static_cast<u32>(r) << 16) | (static_cast<u32>(g) << 8) | b;
                 // 0x9E3779B1: Donald Knuth 黄金分割哈希
-                auto  hash_idx = (key * 0x9E3779B1) >> (32 - CACHE_N_LOG2);
-                auto &entry    = cache.at(hash_idx);
+                auto  hash_idx = (key * 0x9E3779B1) >> (32 - cache_n_log2);
+                auto &entry    = cache[hash_idx];
 
                 if (entry.key == key)
                 {
@@ -322,4 +313,28 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
                    bench_cache_miss);
 #endif
     return {};
+}
+
+}
+
+auto
+render_ascii_art(const RenderOpts &opts) -> Result<void>
+{
+    if (!opts.target || opts.target == INVALID_HANDLE_VALUE)
+        return fail(ErrCode::InvalidValue, "Invalid render target handle");
+    if (opts.pixels.empty() || opts.brush.empty() || opts.width == 0 || opts.height == 0)
+        return fail(ErrCode::InvalidValue, "Invalid render parameters");
+
+    static constexpr std::size_t SMALL_CACHE_N_LOG2{12};
+    static constexpr std::size_t LARGE_CACHE_N_LOG2{16};
+    static constexpr u64         CACHE_THRESHOLD{8'000'000};
+
+    if (static_cast<u64>(opts.width) * opts.height <= CACHE_THRESHOLD)
+    {
+        std::array<CacheEntry, 1 << SMALL_CACHE_N_LOG2> cache{};
+        return render_ascii_art_impl(opts, cache, SMALL_CACHE_N_LOG2);
+    }
+
+    std::vector<CacheEntry> cache(1 << LARGE_CACHE_N_LOG2);
+    return render_ascii_art_impl(opts, cache, LARGE_CACHE_N_LOG2);
 }
