@@ -5,7 +5,6 @@
 
 #include <array>
 #include <cmath>
-#include <cstddef>
 #include <format>
 #include <fstream>
 #include <limits>
@@ -108,12 +107,12 @@ generate_standard_palette()
 
 }
 
-static constexpr std::size_t TTY16_QUANT_LEVEL{4};
-static constexpr std::size_t TTY256_QUANT_LEVEL{16};
-static constexpr std::size_t TTY16_MAP_SIZE{TTY16_QUANT_LEVEL * TTY16_QUANT_LEVEL *
-                                            TTY16_QUANT_LEVEL};
-static constexpr std::size_t TTY256_MAP_SIZE{TTY256_QUANT_LEVEL * TTY256_QUANT_LEVEL *
-                                             TTY256_QUANT_LEVEL};
+static constexpr usize TTY16_QUANT_LEVEL{4};
+static constexpr usize TTY256_QUANT_LEVEL{16};
+static constexpr usize TTY16_MAP_SIZE{TTY16_QUANT_LEVEL * TTY16_QUANT_LEVEL *
+                                      TTY16_QUANT_LEVEL};
+static constexpr usize TTY256_MAP_SIZE{TTY256_QUANT_LEVEL * TTY256_QUANT_LEVEL *
+                                       TTY256_QUANT_LEVEL};
 
 static constexpr auto TTY16_PALETTE = []() -> auto
 {
@@ -150,7 +149,7 @@ main() -> int
     }
 
     std::array<Lab, 256> tty256_palette_lab{};
-    for (std::size_t i{0}; i < 256; i++)
+    for (usize i{0}; i < 256; i++)
     {
         tty256_palette_lab.at(i) = rgb_to_lab(
             TTY256_PALETTE.at(i)[0], TTY256_PALETTE.at(i)[1], TTY256_PALETTE.at(i)[2]);
@@ -158,9 +157,9 @@ main() -> int
 
     std::array<u8, TTY16_MAP_SIZE> tty16_map{};
 
-    for (std::size_t qr{0}; qr < TTY16_QUANT_LEVEL; qr++)
-        for (std::size_t qg{0}; qg < TTY16_QUANT_LEVEL; qg++)
-            for (std::size_t qb{0}; qb < TTY16_QUANT_LEVEL; qb++)
+    for (usize qr{0}; qr < TTY16_QUANT_LEVEL; qr++)
+        for (usize qg{0}; qg < TTY16_QUANT_LEVEL; qg++)
+            for (usize qb{0}; qb < TTY16_QUANT_LEVEL; qb++)
             {
                 int r{static_cast<int>(qr * 255U / (TTY16_QUANT_LEVEL - 1))};
                 int g{static_cast<int>(qg * 255U / (TTY16_QUANT_LEVEL - 1))};
@@ -194,9 +193,9 @@ main() -> int
 
     std::array<u8, TTY256_MAP_SIZE> tty256_map{};
 
-    for (std::size_t qr{0}; qr < TTY256_QUANT_LEVEL; qr++)
-        for (std::size_t qg{0}; qg < TTY256_QUANT_LEVEL; qg++)
-            for (std::size_t qb{0}; qb < TTY256_QUANT_LEVEL; qb++)
+    for (usize qr{0}; qr < TTY256_QUANT_LEVEL; qr++)
+        for (usize qg{0}; qg < TTY256_QUANT_LEVEL; qg++)
+            for (usize qb{0}; qb < TTY256_QUANT_LEVEL; qb++)
             {
                 int r{static_cast<int>(qr * 255U / (TTY256_QUANT_LEVEL - 1))};
                 int g{static_cast<int>(qg * 255U / (TTY256_QUANT_LEVEL - 1))};
@@ -208,7 +207,7 @@ main() -> int
                 int best_idx{0};
                 int best_dist{(std::numeric_limits<int>::max)()};
 
-                for (std::size_t i{0}; i < 256; i++)
+                for (usize i{0}; i < 256; i++)
                 {
                     const auto &c = tty256_palette_lab.at(i);
                     double      dL{input_lab.L - c.L};
@@ -238,22 +237,20 @@ main() -> int
     ofs << "#include \"base.h\"\n";
     ofs << "\n";
     ofs << "#include <array>\n";
-    ofs << "#include <cstddef>\n";
     ofs << "\n";
 
-    ofs << std::format("inline constexpr std::size_t TTY16_QUANT_LEVEL{{{}}};\n",
+    ofs << std::format("inline constexpr usize TTY16_QUANT_LEVEL{{{}}};\n",
                        TTY16_QUANT_LEVEL);
-    ofs << std::format("inline constexpr std::size_t TTY256_QUANT_LEVEL{{{}}};\n",
+    ofs << std::format("inline constexpr usize TTY256_QUANT_LEVEL{{{}}};\n",
                        TTY256_QUANT_LEVEL);
-    ofs << std::format("inline constexpr std::size_t TTY16_MAP_SIZE{{{}}};\n",
-                       TTY16_MAP_SIZE);
-    ofs << std::format("inline constexpr std::size_t TTY256_MAP_SIZE{{{}}};\n",
+    ofs << std::format("inline constexpr usize TTY16_MAP_SIZE{{{}}};\n", TTY16_MAP_SIZE);
+    ofs << std::format("inline constexpr usize TTY256_MAP_SIZE{{{}}};\n",
                        TTY256_MAP_SIZE);
     ofs << "\n";
 
     ofs << "inline constexpr std::array<u8, TTY16_MAP_SIZE> TTY16_MAP{{\n";
 
-    for (std::size_t i{0}; i < TTY16_MAP_SIZE; i++)
+    for (usize i{0}; i < TTY16_MAP_SIZE; i++)
     {
         ofs << std::format("{}, ", static_cast<int>(tty16_map.at(i)));
         if (i % 16 == 15) ofs << "\n";
@@ -263,7 +260,7 @@ main() -> int
 
     ofs << "inline constexpr std::array<u8, TTY256_MAP_SIZE> TTY256_MAP{{\n";
 
-    for (std::size_t i{0}; i < TTY256_MAP_SIZE; i++)
+    for (usize i{0}; i < TTY256_MAP_SIZE; i++)
     {
         ofs << std::format("{}, ", static_cast<int>(tty256_map.at(i)));
         if (i % 16 == 15) ofs << "\n";

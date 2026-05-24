@@ -6,12 +6,11 @@
 #include "base.h"
 
 #include <array>
-#include <cstddef>
 
-inline constexpr std::size_t TTY16_QUANT_LEVEL{4};
-inline constexpr std::size_t TTY256_QUANT_LEVEL{16};
-inline constexpr std::size_t TTY16_MAP_SIZE{64};
-inline constexpr std::size_t TTY256_MAP_SIZE{4096};
+inline constexpr usize TTY16_QUANT_LEVEL{4};
+inline constexpr usize TTY256_QUANT_LEVEL{16};
+inline constexpr usize TTY16_MAP_SIZE{64};
+inline constexpr usize TTY256_MAP_SIZE{4096};
 
 inline constexpr std::array<u8, TTY16_MAP_SIZE> TTY16_MAP{{
     30, 34, 34, 94, 32, 36, 34, 34, 32, 32, 36, 36, 92, 92, 96, 96,

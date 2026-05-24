@@ -9,9 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstddef>
-#include <cstdlib>
-#include <cstring>
 #include <mdspan>
 #include <semaphore>
 #include <span>
@@ -25,21 +22,21 @@
 
 using namespace std::string_view_literals;
 
-static constexpr std::ptrdiff_t MAX_ESC_LEN{20};
-static constexpr int            GRAY_BASE{232};
-static constexpr int            GRAY_STEPS{23};
-static constexpr std::ptrdiff_t BUF_PAD{8};
+static constexpr isize MAX_ESC_LEN{20};
+static constexpr int   GRAY_BASE{232};
+static constexpr int   GRAY_STEPS{23};
+static constexpr isize BUF_PAD{8};
 
 namespace
 {
 
-template <std::size_t QuantLevel, std::size_t N>
+template <usize QuantLevel, usize N>
 [[nodiscard]] inline auto
 map_to_tty_impl(u8 r, u8 g, u8 b, const std::array<u8, N> &map) -> u8
 {
-    std::size_t qr{(r * (QuantLevel - 1)) / 255};
-    std::size_t qg{(g * (QuantLevel - 1)) / 255};
-    std::size_t qb{(b * (QuantLevel - 1)) / 255};
+    usize qr{(r * (QuantLevel - 1)) / 255};
+    usize qg{(g * (QuantLevel - 1)) / 255};
+    usize qb{(b * (QuantLevel - 1)) / 255};
     return map.at((qr * QuantLevel * QuantLevel) + (qg * QuantLevel) + qb);
 }
 
@@ -56,7 +53,7 @@ map_to_tty256(u8 r, u8 g, u8 b) -> u8
 }
 
 [[nodiscard]] inline auto
-format_u8(std::span<wchar_t> buf, u8 v) -> std::ptrdiff_t
+format_u8(std::span<wchar_t> buf, u8 v) -> isize
 {
     if (v == 0)
     {
@@ -64,13 +61,13 @@ format_u8(std::span<wchar_t> buf, u8 v) -> std::ptrdiff_t
         return 1;
     }
     std::array<wchar_t, 4> temp{};
-    std::ptrdiff_t         i{3};
+    isize                  i{3};
     while (v > 0)
     {
         temp.at(i--) = L'0' + (v % 10);
         v /= 10;
     }
-    std::ptrdiff_t len{3 - i};
+    isize len{3 - i};
     std::ranges::copy_n(&temp.at(i + 1), len, buf.begin());
     return len;
 }
@@ -79,14 +76,14 @@ template <typename... Args>
     requires(std::same_as<std::decay_t<Args>, u8> && ...)
 [[nodiscard]] auto
 format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... args)
-    -> std::ptrdiff_t
+    -> isize
 {
-    std::ptrdiff_t written{0};
+    isize written{0};
     buf_span[written++] = L'\x1b';
     buf_span[written++] = L'[';
 
     std::ranges::copy(prefix, buf_span.begin() + written);
-    written += static_cast<std::ptrdiff_t>(prefix.size());
+    written += static_cast<isize>(prefix.size());
 
     bool sep = false;
     ((sep ? (buf_span[written++] = L';', 0) : 0,
@@ -105,10 +102,10 @@ struct CacheEntry
 
 [[nodiscard]] auto
 render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
-                      std::size_t cache_n_log2) -> Result<void>
+                      usize cache_n_log2) -> Result<void>
 {
     static constexpr std::wstring_view SEQ_NLINE{L"\r\n"};
-    static constexpr std::ptrdiff_t    SEQ_NLINE_LEN{SEQ_NLINE.size()};
+    static constexpr isize             SEQ_NLINE_LEN{SEQ_NLINE.size()};
     const bool to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
     const auto max_line_chars{(opts.width * MAX_ESC_LEN) + SEQ_NLINE_LEN + BUF_PAD};
 
@@ -116,7 +113,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
         std::vector<wchar_t>(max_line_chars),
         std::vector<wchar_t>(max_line_chars),
     }};
-    std::array<std::ptrdiff_t, 2>       row_lens{};
+    std::array<isize, 2>                row_lens{};
     std::counting_semaphore<2>          sem_empty{2};
     std::counting_semaphore<2>          sem_filled{0};
 
@@ -194,8 +191,8 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
             }
         });
 
-    using PixelExtents = std::extents<std::size_t, std::dynamic_extent,
-                                      std::dynamic_extent, IMAGE_PIXEL_BYTE>;
+    using PixelExtents =
+        std::extents<usize, std::dynamic_extent, std::dynamic_extent, IMAGE_PIXEL_BYTE>;
     auto px =
         std::mdspan<const u8, PixelExtents>{opts.pixels.data(), opts.height, opts.width};
 
@@ -205,7 +202,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
         auto &render_buf = render_bufs.at(p_write);
         sem_empty.acquire();
 
-        std::ptrdiff_t pos{0};
+        isize pos{0};
         for (u32 x{0}; x < opts.width; x++)
         {
 #ifdef BENCH_RENDER
@@ -217,10 +214,10 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
             u8     r{px[y, x, 2]};
             double lum{((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255}; // BT.709
 
-            auto brush_idx = static_cast<std::size_t>(
-                lum * static_cast<double>(opts.brush.size() - 1));
-            wchar_t        brush_chr{opts.brush[brush_idx]};
-            std::ptrdiff_t color_len{0};
+            auto brush_idx =
+                static_cast<usize>(lum * static_cast<double>(opts.brush.size() - 1));
+            wchar_t brush_chr{opts.brush[brush_idx]};
+            isize   color_len{0};
 
 #ifdef BENCH_RENDER
             t_other.stop();
@@ -239,7 +236,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 {
                     std::ranges::copy_n(static_cast<wchar_t *>(entry.seq), entry.len,
                                         &render_buf[pos]);
-                    color_len = static_cast<std::ptrdiff_t>(entry.len);
+                    color_len = static_cast<isize>(entry.len);
 #ifdef BENCH_RENDER
                     bench_cache_hit++;
 #endif
@@ -307,7 +304,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
     bench_csv.header("width,height,pixels,color_mode,calc_us,format_us,io_us,"
                      "total_us,cache_hit,cache_miss");
     bench_csv.rowf("{},{},{},{},{:.1f},{:.1f},{:.1f},{:.1f},{},{}", opts.width,
-                   opts.height, static_cast<std::size_t>(opts.width) * opts.height,
+                   opts.height, static_cast<usize>(opts.width) * opts.height,
                    static_cast<int>(opts.color_mode), bench_calc, bench_format, bench_io,
                    bench_calc + bench_format + bench_io, bench_cache_hit,
                    bench_cache_miss);
@@ -325,9 +322,9 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
     if (opts.pixels.empty() || opts.brush.empty() || opts.width == 0 || opts.height == 0)
         return fail(ErrCode::InvalidValue, "Invalid render parameters");
 
-    static constexpr std::size_t SMALL_CACHE_N_LOG2{12};
-    static constexpr std::size_t LARGE_CACHE_N_LOG2{16};
-    static constexpr u64         CACHE_THRESHOLD{8'000'000};
+    static constexpr usize SMALL_CACHE_N_LOG2{12};
+    static constexpr usize LARGE_CACHE_N_LOG2{16};
+    static constexpr u64   CACHE_THRESHOLD{8'000'000};
 
     if (static_cast<u64>(opts.width) * opts.height <= CACHE_THRESHOLD)
     {

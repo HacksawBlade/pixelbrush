@@ -20,7 +20,7 @@ to_narrow(std::wstring_view wsv) -> std::string
     if (len == 0) return {};
     std::string s{};
     s.resize_and_overwrite(len,
-                           [&](char *buf, size_t buf_size) noexcept -> int
+                           [&](char *buf, usize buf_size) noexcept -> int
                            {
                                int written = WideCharToMultiByte(
                                    CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
@@ -38,7 +38,7 @@ to_wide(std::string_view sv) -> std::wstring
     if (len == 0) return {};
     std::wstring ws{};
     ws.resize_and_overwrite(len,
-                            [&](wchar_t *buf, size_t buf_size) noexcept -> int
+                            [&](wchar_t *buf, usize buf_size) noexcept -> int
                             {
                                 int written = MultiByteToWideChar(
                                     CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
@@ -62,7 +62,7 @@ abspath(const std::wstring &path) -> Result<std::wstring>
 
     fullpath.resize_and_overwrite(
         INITIAL_BUFSIZE,
-        [&](wchar_t *buf, size_t buf_size) noexcept -> DWORD
+        [&](wchar_t *buf, usize buf_size) noexcept -> DWORD
         {
             DWORD len{GetFullPathNameW(path.c_str(), static_cast<DWORD>(buf_size), buf,
                                        nullptr)};
@@ -83,7 +83,7 @@ abspath(const std::wstring &path) -> Result<std::wstring>
 
     fullpath.resize_and_overwrite(
         required,
-        [&](wchar_t *buf, size_t buf_size) noexcept -> DWORD
+        [&](wchar_t *buf, usize buf_size) noexcept -> DWORD
         {
             DWORD len{GetFullPathNameW(path.c_str(), static_cast<DWORD>(buf_size), buf,
                                        nullptr)};
