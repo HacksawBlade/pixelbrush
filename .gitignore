@@ -3,6 +3,7 @@
 .xmake/
 assets/samples/
 build/
+docs/changelogs/
 release/
 
 *.archive.*
