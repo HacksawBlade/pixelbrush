@@ -123,6 +123,8 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
     u64          bench_cache_hit{0}, bench_cache_miss{0};
 #endif
 
+    std::string utf8_buf;
+    utf8_buf.reserve(max_line_chars * strutil::MAX_UTF8_BYTES_PER_WCHAR);
     std::jthread io_thread(
         [&]() -> void
         {
@@ -154,12 +156,12 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                     {
                     case OutputFormat::UTF8:
                     {
-                        auto utf8_data = strutil::to_narrow(
-                            std::wstring_view{row_buf.data(), row_buf.size()});
-                        if (!utf8_data.empty())
+                        strutil::to_narrow(
+                            std::wstring_view{row_buf.data(), row_buf.size()}, utf8_buf);
+                        if (!utf8_buf.empty())
                         {
-                            WriteFile(opts.target, utf8_data.data(),
-                                      static_cast<DWORD>(utf8_data.size()), nullptr,
+                            WriteFile(opts.target, utf8_buf.data(),
+                                      static_cast<DWORD>(utf8_buf.size()), nullptr,
                                       nullptr);
                         }
                         break;

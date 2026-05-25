@@ -13,6 +13,8 @@
 namespace strutil
 {
 
+inline constexpr u8 MAX_UTF8_BYTES_PER_WCHAR{3};
+
 inline auto
 to_narrow(std::wstring_view wsv, std::string &out) -> void
 {
@@ -21,7 +23,7 @@ to_narrow(std::wstring_view wsv, std::string &out) -> void
         out.clear();
         return;
     }
-    const usize max_len{wsv.size() * 3};
+    const usize max_len{wsv.size() * MAX_UTF8_BYTES_PER_WCHAR};
     if (max_len > INT_MAX)
     {
         out.clear();
