@@ -15,11 +15,12 @@ namespace strutil
 [[nodiscard]] inline auto
 to_narrow(std::wstring_view wsv) -> std::string
 {
-    int len = WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
-                                  nullptr, 0, nullptr, nullptr);
-    if (len == 0) return {};
-    std::string s{};
-    s.resize_and_overwrite(len,
+    if (wsv.empty()) return {};
+    const usize max_len{wsv.size() * 3};
+    if (max_len > INT_MAX) return {};
+
+    std::string s;
+    s.resize_and_overwrite(max_len,
                            [&](char *buf, usize buf_size) noexcept -> int
                            {
                                int written = WideCharToMultiByte(
@@ -33,11 +34,12 @@ to_narrow(std::wstring_view wsv) -> std::string
 [[nodiscard]] inline auto
 to_wide(std::string_view sv) -> std::wstring
 {
-    int len = MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
-                                  nullptr, 0);
-    if (len == 0) return {};
-    std::wstring ws{};
-    ws.resize_and_overwrite(len,
+    if (sv.empty()) return {};
+    const usize maxlen{sv.size()};
+    if (maxlen > INT_MAX) return {};
+
+    std::wstring ws;
+    ws.resize_and_overwrite(maxlen,
                             [&](wchar_t *buf, usize buf_size) noexcept -> int
                             {
                                 int written = MultiByteToWideChar(
@@ -53,12 +55,13 @@ to_wide(std::string_view sv) -> std::wstring
 namespace fsutil
 {
 
+static constexpr usize INITIAL_BUFSIZE{256};
+
 [[nodiscard]] inline auto
 abspath(const std::wstring &path) -> Result<std::wstring>
 {
-    static constexpr DWORD INITIAL_BUFSIZE{512};
-    DWORD                  required{0};
-    std::wstring           fullpath;
+    std::wstring fullpath;
+    DWORD        required{0};
 
     fullpath.resize_and_overwrite(
         INITIAL_BUFSIZE,
