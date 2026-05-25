@@ -4,6 +4,7 @@
 #pragma once
 
 #include "base.h"
+#include "handle.h"
 
 #include <format>
 #include <span>
@@ -13,21 +14,22 @@
 namespace strutil
 {
 
-inline constexpr u8 MAX_UTF8_BYTES_PER_WCHAR{3};
+inline constexpr u8 MAX_UTF8_BYTES_PER_WCHAR{4};
 
-inline auto
-to_narrow(std::wstring_view wsv, std::string &out) -> void
+[[nodiscard]] inline auto
+to_narrow(std::wstring_view wsv, std::string &out) -> Result<void>
 {
     if (wsv.empty())
     {
         out.clear();
-        return;
+        return {};
     }
     const usize max_len{wsv.size() * MAX_UTF8_BYTES_PER_WCHAR};
     if (max_len > INT_MAX)
     {
         out.clear();
-        return;
+        return fail(ErrCode::InbufTooLong,
+                    std::format("Buffer too large for conversion ({})", max_len));
     }
 
     out.resize_and_overwrite(max_len,
@@ -38,13 +40,16 @@ to_narrow(std::wstring_view wsv, std::string &out) -> void
                                      buf, static_cast<int>(buf_size), nullptr, nullptr)};
                                  return written > 0 ? written : 0;
                              });
+    if (out.empty())
+        return fail(ErrCode::OutbufTooShort, "String conversion produced no output");
+    return {};
 }
 
 [[nodiscard]] inline auto
 to_narrow(std::wstring_view wsv) -> std::string
 {
     std::string out;
-    to_narrow(wsv, out);
+    if (auto result = to_narrow(wsv, out); !result) return {};
     return out;
 }
 
@@ -55,26 +60,27 @@ to_narrow(std::wstring_view wsv, std::span<char> buf) -> int
     int len{WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
                                 nullptr, 0, nullptr, nullptr)};
     if (len == 0) return 0;
-    if (len > buf.size()) return 0;
+    if (len > static_cast<int>(buf.size())) return 0;
     int written{WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
                                     buf.data(), static_cast<int>(buf.size()), nullptr,
                                     nullptr)};
     return written > 0 ? written : 0;
 }
 
-inline auto
-to_wide(std::string_view sv, std::wstring &out) -> void
+[[nodiscard]] inline auto
+to_wide(std::string_view sv, std::wstring &out) -> Result<void>
 {
     if (sv.empty())
     {
         out.clear();
-        return;
+        return {};
     }
     const usize max_len{sv.size()};
     if (max_len > INT_MAX)
     {
         out.clear();
-        return;
+        return fail(ErrCode::InbufTooLong,
+                    std::format("Buffer too large for conversion ({})", max_len));
     }
 
     out.resize_and_overwrite(max_len,
@@ -85,13 +91,16 @@ to_wide(std::string_view sv, std::wstring &out) -> void
                                      buf, static_cast<int>(buf_size))};
                                  return written > 0 ? written : 0;
                              });
+    if (out.empty())
+        return fail(ErrCode::OutbufTooShort, "String conversion produced no output");
+    return {};
 }
 
 [[nodiscard]] inline auto
 to_wide(std::string_view sv) -> std::wstring
 {
     std::wstring out;
-    to_wide(sv, out);
+    if (auto result = to_wide(sv, out); !result) return {};
     return out;
 }
 
@@ -102,7 +111,7 @@ to_wide(std::string_view sv, std::span<wchar_t> buf) -> int
     int len{MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
                                 nullptr, 0)};
     if (len == 0) return 0;
-    if (len > buf.size()) return 0;
+    if (len > static_cast<int>(buf.size())) return 0;
     int written{MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
                                     buf.data(), static_cast<int>(buf.size()))};
     return written > 0 ? written : 0;
@@ -155,6 +164,18 @@ abspath(const std::wstring &path) -> Result<std::wstring>
         return fail(ErrCode::FilePath,
                     std::format("Failed to find file: {}", strutil::to_narrow(path)));
     return fullpath;
+}
+
+[[nodiscard]] inline auto
+create_file(const std::wstring &path) -> Result<ScopedHandle>
+{
+    HANDLE handle{CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE)
+        return fail(ErrCode::FilePath,
+                    std::format("Failed to create output file: {} ({})",
+                                strutil::to_narrow(path), last_system_errmsg()));
+    return ScopedHandle{handle, true};
 }
 
 }

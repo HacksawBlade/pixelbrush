@@ -4,6 +4,7 @@
 #include "argon.h"
 #include "args.h"
 #include "console.h"
+#include "handle.h"
 #include "image.h"
 #include "render.h"
 #include "utils.h"
@@ -31,40 +32,42 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         return EXIT_FAILURE;
     }
 
-    HANDLE handle{args->output_path.empty()
-                      ? GetStdHandle(STD_OUTPUT_HANDLE)
-                      : CreateFileW(args->output_path.c_str(), GENERIC_WRITE, 0, nullptr,
-                                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)};
-    if (handle == INVALID_HANDLE_VALUE)
+    ScopedHandle handle{};
+    bool         to_console{false};
+    if (args->output_path.empty())
     {
-        std::println(stderr, "{} Failed to get output handle: {}", ERROR_PREFIX,
-                     strutil::to_narrow(args->output_path));
-        return EXIT_FAILURE;
+        auto cinit = console::init();
+        if (!cinit)
+        {
+            std::println(stderr, "{} {}", ERROR_PREFIX, cinit.error().message);
+            return EXIT_FAILURE;
+        }
+        handle     = std::move(*cinit);
+        to_console = true;
     }
-    const bool to_console{GetFileType(handle) == FILE_TYPE_CHAR};
+    else
+    {
+        auto file_handle = fsutil::create_file(args->output_path);
+        if (!file_handle)
+        {
+            std::println(stderr, "{} {}", ERROR_PREFIX, file_handle.error().message);
+            return EXIT_FAILURE;
+        }
+        handle = std::move(*file_handle);
+    }
 
     u16 term_cols{CONSOLE_DEFAULT_COLS};
     u16 term_rows{CONSOLE_DEFAULT_ROWS};
     if (to_console)
     {
-        if (auto cinit_result = console::init(handle); !cinit_result)
+        if (auto size = console::get_size(*handle); !size)
         {
-            std::println(stderr, "{} {}", ERROR_PREFIX, cinit_result.error().message);
-            if (cinit_result.error().code == ErrCode::CantGetHandle) return EXIT_FAILURE;
+            std::println(stderr, "{} {}", ERROR_PREFIX, size.error().message);
         }
         else
         {
-            auto size = console::get_size(handle);
-            if (!size)
-            {
-                std::println(stderr, "{} {}", ERROR_PREFIX, size.error().message);
-                if (size.error().code == ErrCode::CantGetHandle) return EXIT_FAILURE;
-            }
-            else
-            {
-                term_cols = size->first;
-                term_rows = size->second;
-            }
+            term_cols = size->first;
+            term_rows = size->second;
         }
     }
 
@@ -82,8 +85,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
     u32 target_height{0};
     if (args->size[0] > 0 && args->size[1] > 0)
     {
-        target_width  = args->size[0];
-        target_height = args->size[1];
+        target_width  = static_cast<u32>(args->size[0]);
+        target_height = static_cast<u32>(args->size[1]);
     }
     else
     {
@@ -109,14 +112,14 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         }
     }
 
-    if (auto scale_result = image->scale(target_width, target_height); !scale_result)
+    if (auto r_scale = image->scale(target_width, target_height); !r_scale)
     {
-        std::println(stderr, "{} {}", ERROR_PREFIX, scale_result.error().message);
+        std::println(stderr, "{} {}", ERROR_PREFIX, r_scale.error().message);
         return EXIT_FAILURE;
     }
 
     RenderOpts render_opts{
-        .target        = handle,
+        .target        = *handle,
         .pixels        = image->pixels(),
         .width         = image->width(),
         .height        = image->height(),
@@ -125,9 +128,9 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         .output_format = args->output_format,
     };
 
-    if (auto render_result = render_ascii_art(render_opts); !render_result)
+    if (auto r_render = render_ascii_art(render_opts); !r_render)
     {
-        std::println(stderr, "{} {}", ERROR_PREFIX, render_result.error().message);
+        std::println(stderr, "{} {}", ERROR_PREFIX, r_render.error().message);
         return EXIT_FAILURE;
     }
 

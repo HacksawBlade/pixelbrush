@@ -22,7 +22,6 @@ using usize = std::size_t;
 
 enum class ErrCode : u8
 {
-    Success,
     MissingArgs,
     InvalidArgs,
     ArgValueNeeded,
@@ -36,6 +35,8 @@ enum class ErrCode : u8
     CreateObject,
     IO,
     InvalidValue,
+    InbufTooLong,
+    OutbufTooShort,
 };
 
 class Error
@@ -44,7 +45,6 @@ public:
     ErrCode     code;
     std::string message;
 
-    Error() : code{ErrCode::Success} {}
     explicit Error(ErrCode c, std::string msg = {}) : code{c}, message{std::move(msg)} {}
 };
 

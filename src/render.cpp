@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <mdspan>
 #include <semaphore>
 #include <span>
@@ -85,10 +86,14 @@ format_ansi_seq(std::span<wchar_t> buf_span, std::wstring_view prefix, Args... a
     std::ranges::copy(prefix, buf_span.begin() + written);
     written += static_cast<isize>(prefix.size());
 
-    bool sep = false;
-    ((sep ? (buf_span[written++] = L';', 0) : 0,
-      written += format_u8(buf_span.subspan(written), args), sep = true),
-     ...);
+    bool sep       = false;
+    auto write_arg = [&](u8 arg) -> auto
+    {
+        if (sep) buf_span[written++] = L';';
+        written += format_u8(buf_span.subspan(written), arg);
+        sep = true;
+    };
+    (write_arg(args), ...);
     buf_span[written++] = L'm';
     return written;
 }
@@ -123,15 +128,21 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
     u64          bench_cache_hit{0}, bench_cache_miss{0};
 #endif
 
-    std::string utf8_buf;
-    utf8_buf.reserve(max_line_chars * strutil::MAX_UTF8_BYTES_PER_WCHAR);
-    std::jthread io_thread(
+    std::atomic<bool> io_failed{false};
+    std::string       utf8_buf;
+
+    if (opts.output_format == OutputFormat::UTF8)
+        utf8_buf.reserve(max_line_chars * strutil::MAX_UTF8_BYTES_PER_WCHAR);
+
+    std::thread io_thread(
         [&]() -> void
         {
             if (!to_console && opts.output_format == OutputFormat::UTF16LE)
             {
-                static constexpr u16 BOM_UTF16{0xFEFF};
-                WriteFile(opts.target, &BOM_UTF16, sizeof(BOM_UTF16), nullptr, nullptr);
+                static constexpr u16 BOM_UTF16LE{0xFEFF};
+                if (!WriteFile(opts.target, &BOM_UTF16LE, sizeof(BOM_UTF16LE), nullptr,
+                               nullptr)) [[unlikely]]
+                    io_failed = true;
             }
 
             u8 p_read{0};
@@ -147,8 +158,10 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
 
                 if (to_console)
                 {
-                    WriteConsoleW(opts.target, row_buf.data(),
-                                  static_cast<DWORD>(row_buf.size()), nullptr, nullptr);
+                    if (!WriteConsoleW(opts.target, row_buf.data(),
+                                       static_cast<DWORD>(row_buf.size()), nullptr,
+                                       nullptr)) [[unlikely]]
+                        io_failed = true;
                 }
                 else
                 {
@@ -156,24 +169,32 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                     {
                     case OutputFormat::UTF8:
                     {
-                        strutil::to_narrow(
-                            std::wstring_view{row_buf.data(), row_buf.size()}, utf8_buf);
-                        if (!utf8_buf.empty())
-                        {
-                            WriteFile(opts.target, utf8_buf.data(),
-                                      static_cast<DWORD>(utf8_buf.size()), nullptr,
-                                      nullptr);
-                        }
+                        if (auto conv = strutil::to_narrow(
+                                std::wstring_view{row_buf.data(), row_buf.size()},
+                                utf8_buf);
+                            !conv)
+                            io_failed = true;
+                        else if (!utf8_buf.empty())
+                            if (!WriteFile(opts.target, utf8_buf.data(),
+                                           static_cast<DWORD>(utf8_buf.size()), nullptr,
+                                           nullptr)) [[unlikely]]
+                                io_failed = true;
                         break;
                     }
                     case OutputFormat::UTF16LE:
-                    {
-                        WriteFile(opts.target, row_buf.data(),
-                                  static_cast<DWORD>(row_buf.size() * sizeof(wchar_t)),
-                                  nullptr, nullptr);
+                        if (!WriteFile(
+                                opts.target, row_buf.data(),
+                                static_cast<DWORD>(row_buf.size() * sizeof(wchar_t)),
+                                nullptr, nullptr)) [[unlikely]]
+                            io_failed = true;
                         break;
                     }
-                    }
+                }
+
+                if (io_failed) [[unlikely]]
+                {
+                    sem_empty.release();
+                    break;
                 }
 
 #ifdef BENCH_RENDER
@@ -185,9 +206,10 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 p_read = (p_read + 1u) & 1;
             }
 
-            static constexpr std::wstring_view RESET_SEQ{L"\x1b[0m"};
-            if (to_console && opts.color_mode != RenderColorMode::BlackWhite)
+            if (!io_failed && to_console &&
+                opts.color_mode != RenderColorMode::BlackWhite) [[likely]]
             {
+                static constexpr std::wstring_view RESET_SEQ{L"\x1b[0m"};
                 WriteConsoleW(opts.target, RESET_SEQ.data(),
                               static_cast<DWORD>(RESET_SEQ.size()), nullptr, nullptr);
             }
@@ -195,14 +217,19 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
 
     using PixelExtents =
         std::extents<usize, std::dynamic_extent, std::dynamic_extent, IMAGE_PIXEL_BYTE>;
-    auto px =
-        std::mdspan<const u8, PixelExtents>{opts.pixels.data(), opts.height, opts.width};
+    std::mdspan<const u8, PixelExtents> px{opts.pixels.data(), opts.height, opts.width};
 
     u8 p_write{0};
     for (u32 y{0}; y < opts.height; y++)
     {
         auto &render_buf = render_bufs.at(p_write);
         sem_empty.acquire();
+
+        if (io_failed) [[unlikely]]
+        {
+            sem_filled.release();
+            break;
+        }
 
         isize pos{0};
         for (u32 x{0}; x < opts.width; x++)
@@ -301,6 +328,8 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
         p_write = (p_write + 1u) & 1;
     }
 
+    io_thread.join();
+
 #ifdef BENCH_RENDER
     bench::CsvWriter bench_csv{"benchmark/render.csv"};
     bench_csv.header("width,height,pixels,color_mode,calc_us,format_us,io_us,"
@@ -311,6 +340,10 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                    bench_calc + bench_format + bench_io, bench_cache_hit,
                    bench_cache_miss);
 #endif
+
+    if (io_failed) [[unlikely]]
+        return fail(ErrCode::IO, "Failed to write output");
+
     return {};
 }
 
@@ -323,12 +356,15 @@ render_ascii_art(const RenderOpts &opts) -> Result<void>
         return fail(ErrCode::InvalidValue, "Invalid render target handle");
     if (opts.pixels.empty() || opts.brush.empty() || opts.width == 0 || opts.height == 0)
         return fail(ErrCode::InvalidValue, "Invalid render parameters");
+    if (opts.pixels.size() <
+        static_cast<usize>(opts.width) * opts.height * IMAGE_PIXEL_BYTE)
+        return fail(ErrCode::InvalidValue, "Pixel buffer too small for given dimensions");
 
     static constexpr usize SMALL_CACHE_N_LOG2{12};
     static constexpr usize LARGE_CACHE_N_LOG2{16};
     static constexpr u64   CACHE_THRESHOLD{8'000'000};
 
-    if (static_cast<u64>(opts.width) * opts.height <= CACHE_THRESHOLD)
+    if (static_cast<u64>(opts.width) * opts.height <= CACHE_THRESHOLD) [[likely]]
     {
         std::array<CacheEntry, 1 << SMALL_CACHE_N_LOG2> cache{};
         return render_ascii_art_impl(opts, cache, SMALL_CACHE_N_LOG2);

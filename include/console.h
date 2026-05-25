@@ -4,6 +4,7 @@
 #pragma once
 
 #include "base.h"
+#include "handle.h"
 
 #include <utility>
 
@@ -28,7 +29,7 @@ public:
     auto operator=(const CpGuard &) -> CpGuard & = delete;
 };
 
-[[nodiscard]] auto init(HANDLE &handle) -> Result<void>;
+[[nodiscard]] auto init() -> Result<ScopedHandle>;
 [[nodiscard]] auto get_size(HANDLE handle) -> Result<std::pair<u16, u16>>;
 
 }
