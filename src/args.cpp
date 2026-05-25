@@ -85,8 +85,10 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
 
     if (arguments.size() < 2) return fail(ErrCode::MissingArgs, "Missing arguments");
 
-    auto arg_strs = arguments | std::views::transform(strutil::to_narrow) |
-                    std::ranges::to<std::vector<std::string>>();
+    auto arg_strs =
+        arguments |
+        std::views::transform([](auto wsv) -> auto { return strutil::to_narrow(wsv); }) |
+        std::ranges::to<std::vector<std::string>>();
     auto arg_ptrs = arg_strs |
                     std::views::transform([](auto &s) -> auto { return s.data(); }) |
                     std::ranges::to<std::vector<char *>>();

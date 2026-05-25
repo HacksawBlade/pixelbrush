@@ -6,48 +6,104 @@
 #include "base.h"
 
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 
 namespace strutil
 {
 
+inline auto
+to_narrow(std::wstring_view wsv, std::string &out) -> void
+{
+    if (wsv.empty())
+    {
+        out.clear();
+        return;
+    }
+    const usize max_len{wsv.size() * 3};
+    if (max_len > INT_MAX)
+    {
+        out.clear();
+        return;
+    }
+
+    out.resize_and_overwrite(max_len,
+                             [&](char *buf, usize buf_size) noexcept -> int
+                             {
+                                 int written{WideCharToMultiByte(
+                                     CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
+                                     buf, static_cast<int>(buf_size), nullptr, nullptr)};
+                                 return written > 0 ? written : 0;
+                             });
+}
+
 [[nodiscard]] inline auto
 to_narrow(std::wstring_view wsv) -> std::string
 {
-    if (wsv.empty()) return {};
-    const usize max_len{wsv.size() * 3};
-    if (max_len > INT_MAX) return {};
+    std::string out;
+    to_narrow(wsv, out);
+    return out;
+}
 
-    std::string s;
-    s.resize_and_overwrite(max_len,
-                           [&](char *buf, usize buf_size) noexcept -> int
-                           {
-                               int written = WideCharToMultiByte(
-                                   CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
-                                   buf, static_cast<int>(buf_size), nullptr, nullptr);
-                               return written > 0 ? written : 0;
-                           });
-    return s;
+[[nodiscard]] inline auto
+to_narrow(std::wstring_view wsv, std::span<char> buf) -> int
+{
+    if (wsv.empty() || buf.empty()) return 0;
+    int len{WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
+                                nullptr, 0, nullptr, nullptr)};
+    if (len == 0) return 0;
+    if (len > buf.size()) return 0;
+    int written{WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
+                                    buf.data(), static_cast<int>(buf.size()), nullptr,
+                                    nullptr)};
+    return written > 0 ? written : 0;
+}
+
+inline auto
+to_wide(std::string_view sv, std::wstring &out) -> void
+{
+    if (sv.empty())
+    {
+        out.clear();
+        return;
+    }
+    const usize max_len{sv.size()};
+    if (max_len > INT_MAX)
+    {
+        out.clear();
+        return;
+    }
+
+    out.resize_and_overwrite(max_len,
+                             [&](wchar_t *buf, usize buf_size) noexcept -> int
+                             {
+                                 int written{MultiByteToWideChar(
+                                     CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
+                                     buf, static_cast<int>(buf_size))};
+                                 return written > 0 ? written : 0;
+                             });
 }
 
 [[nodiscard]] inline auto
 to_wide(std::string_view sv) -> std::wstring
 {
-    if (sv.empty()) return {};
-    const usize maxlen{sv.size()};
-    if (maxlen > INT_MAX) return {};
+    std::wstring out;
+    to_wide(sv, out);
+    return out;
+}
 
-    std::wstring ws;
-    ws.resize_and_overwrite(maxlen,
-                            [&](wchar_t *buf, usize buf_size) noexcept -> int
-                            {
-                                int written = MultiByteToWideChar(
-                                    CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
-                                    buf, static_cast<int>(buf_size));
-                                return written > 0 ? written : 0;
-                            });
-    return ws;
+[[nodiscard]] inline auto
+to_wide(std::string_view sv, std::span<wchar_t> buf) -> int
+{
+    if (sv.empty() || buf.empty()) return 0;
+    int len{MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
+                                nullptr, 0)};
+    if (len == 0) return 0;
+    if (len > buf.size()) return 0;
+    int written{MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
+                                    buf.data(), static_cast<int>(buf.size()))};
+    return written > 0 ? written : 0;
 }
 
 }
