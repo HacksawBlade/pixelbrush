@@ -145,5 +145,5 @@ pixelbrush <IMAGE-PATH> -o out.txt -f UTF8
 ```bash
 pixelbrush photo.jpg -b block --color grayscale
 pixelbrush image.png -b symbols --size 80 40
-pixelbrush photo.bmp -c blackwhite -b shades > output.txt
+pixelbrush photo.bmp -c blackwhite -b shades -o output.txt
 ```
