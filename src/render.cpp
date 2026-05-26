@@ -4,14 +4,13 @@
 #include "render.h"
 
 #include "base.h"
+#include "pipeline.h"
 #include "tty_maps.h"
 #include "utils.h"
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <mdspan>
-#include <semaphore>
 #include <span>
 #include <string_view>
 #include <thread>
@@ -114,25 +113,17 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
     const bool to_console{GetFileType(opts.target) == FILE_TYPE_CHAR};
     const auto max_line_chars{(opts.width * MAX_ESC_LEN) + SEQ_NLINE_LEN + BUF_PAD};
 
-    std::array<std::vector<wchar_t>, 2> render_bufs{{
-        std::vector<wchar_t>(max_line_chars),
-        std::vector<wchar_t>(max_line_chars),
-    }};
-    std::array<isize, 2>                row_lens{};
-    std::counting_semaphore<2>          sem_empty{2};
-    std::counting_semaphore<2>          sem_filled{0};
-
 #ifdef BENCH_RENDER
     bench::Timer t_io{}, t_other{};
     double       bench_io{0}, bench_calc{0}, bench_format{0};
     u64          bench_cache_hit{0}, bench_cache_miss{0};
 #endif
 
-    std::atomic<bool> io_failed{false};
-    std::string       utf8_buf;
-
+    std::string utf8_buf;
     if (opts.output_format == OutputFormat::UTF8)
         utf8_buf.reserve(max_line_chars * strutil::MAX_UTF8_BYTES_PER_WCHAR);
+
+    Pipeline<wchar_t, 2> pipe(max_line_chars);
 
     std::thread io_thread(
         [&]() -> void
@@ -142,15 +133,17 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 static constexpr u16 BOM_UTF16LE{0xFEFF};
                 if (!WriteFile(opts.target, &BOM_UTF16LE, sizeof(BOM_UTF16LE), nullptr,
                                nullptr)) [[unlikely]]
-                    io_failed = true;
+                {
+                    pipe.signal_fail();
+                    return;
+                }
             }
 
-            u8 p_read{0};
             for (u32 y{0}; y < opts.height; y++)
             {
-                sem_filled.acquire();
-                auto row_buf =
-                    std::span{render_bufs.at(p_read)}.first(row_lens.at(p_read));
+                auto [buf, len] = pipe.acquire_read();
+                if (pipe.is_aborted()) [[unlikely]]
+                    return;
 
 #ifdef BENCH_RENDER
                 t_io.start();
@@ -158,10 +151,12 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
 
                 if (to_console)
                 {
-                    if (!WriteConsoleW(opts.target, row_buf.data(),
-                                       static_cast<DWORD>(row_buf.size()), nullptr,
-                                       nullptr)) [[unlikely]]
-                        io_failed = true;
+                    if (!WriteConsoleW(opts.target, buf.data(), static_cast<DWORD>(len),
+                                       nullptr, nullptr)) [[unlikely]]
+                    {
+                        pipe.signal_fail();
+                        return;
+                    }
                 }
                 else
                 {
@@ -170,31 +165,33 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                     case OutputFormat::UTF8:
                     {
                         if (auto conv = strutil::to_narrow(
-                                std::wstring_view{row_buf.data(), row_buf.size()},
+                                std::wstring_view{buf.data(), static_cast<usize>(len)},
                                 utf8_buf);
-                            !conv)
-                            io_failed = true;
-                        else if (!utf8_buf.empty())
+                            !conv) [[unlikely]]
+                        {
+                            pipe.signal_fail();
+                            return;
+                        }
+                        if (!utf8_buf.empty())
                             if (!WriteFile(opts.target, utf8_buf.data(),
                                            static_cast<DWORD>(utf8_buf.size()), nullptr,
                                            nullptr)) [[unlikely]]
-                                io_failed = true;
+                            {
+                                pipe.signal_fail();
+                                return;
+                            }
                         break;
                     }
                     case OutputFormat::UTF16LE:
-                        if (!WriteFile(
-                                opts.target, row_buf.data(),
-                                static_cast<DWORD>(row_buf.size() * sizeof(wchar_t)),
-                                nullptr, nullptr)) [[unlikely]]
-                            io_failed = true;
+                        if (!WriteFile(opts.target, buf.data(),
+                                       static_cast<DWORD>(len * sizeof(wchar_t)), nullptr,
+                                       nullptr)) [[unlikely]]
+                        {
+                            pipe.signal_fail();
+                            return;
+                        }
                         break;
                     }
-                }
-
-                if (io_failed) [[unlikely]]
-                {
-                    sem_empty.release();
-                    break;
                 }
 
 #ifdef BENCH_RENDER
@@ -202,12 +199,10 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 bench_io += t_io.elapsed_us;
 #endif
 
-                sem_empty.release();
-                p_read = (p_read + 1u) & 1;
+                pipe.release_read();
             }
 
-            if (!io_failed && to_console &&
-                opts.color_mode != RenderColorMode::BlackWhite) [[likely]]
+            if (to_console && opts.color_mode != RenderColorMode::BlackWhite)
             {
                 static constexpr std::wstring_view RESET_SEQ{L"\x1b[0m"};
                 WriteConsoleW(opts.target, RESET_SEQ.data(),
@@ -215,21 +210,17 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
             }
         });
 
+    PipelineGuard guard{pipe, io_thread};
+
     using PixelExtents =
         std::extents<usize, std::dynamic_extent, std::dynamic_extent, IMAGE_PIXEL_BYTE>;
     std::mdspan<const u8, PixelExtents> px{opts.pixels.data(), opts.height, opts.width};
 
-    u8 p_write{0};
     for (u32 y{0}; y < opts.height; y++)
     {
-        auto &render_buf = render_bufs.at(p_write);
-        sem_empty.acquire();
-
-        if (io_failed) [[unlikely]]
-        {
-            sem_filled.release();
+        auto buf = pipe.acquire_write();
+        if (pipe.is_aborted()) [[unlikely]]
             break;
-        }
 
         isize pos{0};
         for (u32 x{0}; x < opts.width; x++)
@@ -264,7 +255,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 if (entry.key == key)
                 {
                     std::ranges::copy_n(static_cast<wchar_t *>(entry.seq), entry.len,
-                                        &render_buf[pos]);
+                                        &buf[pos]);
                     color_len = static_cast<isize>(entry.len);
 #ifdef BENCH_RENDER
                     bench_cache_hit++;
@@ -272,7 +263,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                 }
                 else
                 {
-                    std::span<wchar_t> buf_span(&render_buf[pos], max_line_chars - pos);
+                    std::span<wchar_t> buf_span(&buf[pos], max_line_chars - pos);
                     switch (opts.color_mode)
                     {
                     case RenderColorMode::TrueColor:
@@ -299,7 +290,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
 
                     entry.key = key;
                     entry.len = static_cast<u16>(color_len);
-                    std::ranges::copy_n(&render_buf[pos], color_len,
+                    std::ranges::copy_n(&buf[pos], color_len,
                                         static_cast<wchar_t *>(entry.seq));
 #ifdef BENCH_RENDER
                     bench_cache_miss++;
@@ -308,7 +299,8 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
             }
 
             pos += color_len;
-            if (pos < max_line_chars) render_buf[pos++] = brush_chr;
+            if (pos < max_line_chars) [[likely]]
+                buf[pos++] = brush_chr;
 
 #ifdef BENCH_RENDER
             t_other.stop();
@@ -316,16 +308,14 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
 #endif
         }
 
-        if (pos + SEQ_NLINE_LEN < max_line_chars)
+        if (pos + SEQ_NLINE_LEN < max_line_chars) [[likely]]
         {
-            std::ranges::copy(SEQ_NLINE, render_buf.begin() + pos);
+            std::ranges::copy(SEQ_NLINE, buf.begin() + pos);
             pos += SEQ_NLINE_LEN;
         }
-        render_buf[pos] = 0;
+        buf[pos] = 0;
 
-        row_lens.at(p_write) = pos;
-        sem_filled.release();
-        p_write = (p_write + 1u) & 1;
+        pipe.release_write(pos);
     }
 
     io_thread.join();
@@ -341,7 +331,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                    bench_cache_miss);
 #endif
 
-    if (io_failed) [[unlikely]]
+    if (pipe.is_aborted()) [[unlikely]]
         return fail(ErrCode::IO, "Failed to write output");
 
     return {};
