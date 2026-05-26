@@ -92,9 +92,24 @@ pixelbrush --color <MODE>
 | `grayscale`  | 灰阶模式，使用不同亮度的无彩色展现画面信息 | ![灰阶](assets/screenshots/grayscale.png)  |
 | `blackwhite` | 黑白模式，具有独特的高对比度               | ![黑白](assets/screenshots/blackwhite.png) |
 
+### 缩放算法
+
+```sh
+pixelbrush -m <MODE>
+# 或
+pixelbrush --scale-mode <MODE>
+```
+
+图片缩放到目标尺寸时使用的重采样算法。搭配像素画或需要保持原始锐利边缘的场景使用 `Nearest`，照片等连续色调图片用 `Fant`。
+
+| 模式           | 说明                               |
+| -------------- | ---------------------------------- |
+| `Fant`（默认） | 高质量抗锯齿缩放，适合照片         |
+| `Nearest`      | 最近邻插值，保留硬边缘，适合像素画 |
+
 ### 宽度缩放
 
-终端中一个字符的长宽比因平台和设备的不同而不确定。若以“一个字符对应一个像素点”为前提进行像素画生成，实际效果就好像图片被拉伸了一样。`pixelbrush` 默认假设当前终端“两个字符近似一个正方形”，内部设置的「宽度缩放」系数默认即为 **2.0**. 若用户的设备在这个系数下生成的绘画变形，可通过 `-w <FLOAT>` 或 `--wscale <FLOAT>` 进行系数设置，支持任意浮点数。
+终端中一个字符的长宽比是不确定的。若以“一个字符对应一个像素点”为前提进行像素画生成，实际效果往往就像图片被拉伸了一样。`PixelBrush` 默认假设当前终端“两个字符近似一个正方形”，内部设置的「宽度缩放」系数默认即为 **2.0**. 若用户的设备在这个系数下生成的绘画变形，可通过 `-w <FLOAT>` 或 `--wscale <FLOAT>` 进行系数设置，支持任意浮点数。
 
 ### 尺寸设置
 
@@ -103,15 +118,32 @@ pixelbrush --color <MODE>
 ### 输出到文件
 
 ```sh
-pixelbrush <IMAGE-PATH> > out.txt
+pixelbrush <IMAGE-PATH> -o out.txt
 ```
 
-通过 `>` 符号将输出重定向到文件。虽然支持输出重定向，但 `pixelbrush` 不会进行针对性优化，文件中会包含大量 ANSI 控制序列，也会根据图片的原始尺寸生成像素画——这样的文件体积往往十分巨大。因此，推荐使用 `--color blackwhite` 模式进行作画，因为这样不会生成任何控制序列；同时设置支持黑白模式的笔刷；最后还建议使用 `--size` 手动指定输出尺寸，以免文件体积失控。
+使用 `--output` / `-o` 将输出写入文件。
+
+`--output` 可以与 `--format` / `-f` 配合指定输出编码格式：
+
+```sh
+pixelbrush <IMAGE-PATH> -o out.txt -f UTF8
+```
+
+| 格式值            | 说明           |
+| ----------------- | -------------- |
+| `UTF8`            | UTF-8 编码     |
+| `UTF16LE`（默认） | UTF-16 LE 编码 |
+
+> UTF-16 LE 始终具有更好的性能，因为 Windows 使用该编码作为默认 Unicode 编码，`PixelBrush` 同样默认使用该编码，到其他编码的输出都要经过额外转换。
+
+> `PixelBrush` 不会对文件输出进行针对性优化，文件中会包含大量 ANSI 控制序列，也会根据图片的原始尺寸生成像素画——这样的文件体积往往十分巨大。因此，推荐使用 `--color blackwhite` 模式进行作画，因为这样不会生成任何控制序列；为此需要设置支持黑白模式的笔刷；最后还建议使用 `--size` 手动指定输出尺寸，以免文件体积失控。
+
+> 使用重定向功能，如 `pixelbrush image.jpg > output.txt` 输出的文件不再保证内容正确性，因为 PowerShell 重定向时默认的文本编码是不确定的。在传统 Command Prompt 上无该问题。
 
 ## 示例
 
 ```bash
 pixelbrush photo.jpg -b block --color grayscale
 pixelbrush image.png -b symbols --size 80 40
-pixelbrush photo.bmp --color blackwhite > output.txt
+pixelbrush photo.bmp -c blackwhite -b shades > output.txt
 ```

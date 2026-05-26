@@ -92,30 +92,58 @@ pixelbrush --color <MODE>
 | `grayscale`  | Grayscale mode, displays image info using different brightness levels | ![Grayscale](assets/screenshots/grayscale.png) |
 | `blackwhite` | Black & white mode, unique high contrast effect                       | ![B&W](assets/screenshots/blackwhite.png)      |
 
+### Scale Mode
+
+```sh
+pixelbrush -m <MODE>
+# or
+pixelbrush --scale-mode <MODE>
+```
+
+Selects the resampling algorithm used when scaling images. Use `Nearest` for pixel art or when sharp edges must be preserved; use `Fant` for continuous-tone images.
+
+| Mode             | Description                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `Fant` (default) | High-quality antialiased scaling, suitable for photos                        |
+| `Nearest`        | Nearest-neighbor interpolation, preserves hard edges, suitable for pixel art |
+
 ### Width Scale
 
-Terminal character aspect ratios vary across platforms and devices. If each character maps to one pixel, the output may appear stretched. PixelBrush defaults to assuming "two characters ≈ a square" for modern terminals, setting the width scale to **2.0** by default. If the output appears distorted on your device, adjust it with `-w <FLOAT>` or `--wscale <FLOAT>` — any floating-point value is accepted.
+The aspect ratio of a character in a terminal is uncertain. If each character maps to one pixel, the output may appear stretched. `PixelBrush` defaults to assuming "two characters ≈ a square" for modern terminals, setting the width scale to **2.0** by default. If the output appears distorted on your device, adjust it with `-w <FLOAT>` or `--wscale <FLOAT>` — any floating-point value is accepted.
 
 ### Output Size
 
-In terminal mode, PixelBrush automatically computes the best output size to avoid stretching or cropping based on the available console space. To manually set the output size, use `-s <W> <H>` or `--size <W> <H>`. The width value should account for the width scale factor. For example, at the default scale of 2, to render a common 4:3 image with 400 effective columns (effectively 300 rows), use `--size 800 300` (400 × 2 = 800).
+In terminal mode, `PixelBrush` automatically computes the best output size to avoid stretching or cropping based on the available console space. To manually set the output size, use `-s <W> <H>` or `--size <W> <H>`. The width value should account for the width scale factor. For example, at the default scale of 2, to render a common 4:3 image with 400 effective columns (effectively 300 rows), use `--size 800 300` (400 × 2 = 800).
 
 ### Output to File
 
 ```sh
-pixelbrush <IMAGE-PATH> > out.txt
+pixelbrush <IMAGE-PATH> -o out.txt
 ```
 
-Redirect output to a file using `>`. PixelBrush does not optimize for file output — the file will contain ANSI escape sequences and the output size follows the original image dimensions, which can lead to very large files. It is therefore recommended to:
+Write output to a file using `--output` / `-o`.
 
-- Use `--color blackwhite` mode to avoid color control sequences.
-- Use a brush that supports black & white mode.
-- Manually specify output size with `--size` to prevent uncontrolled file growth.
+`--output` can be combined with `--format` / `-f` to specify the output encoding:
+
+```sh
+pixelbrush <IMAGE-PATH> -o out.txt -f UTF8
+```
+
+| Format              | Description        |
+| ------------------- | ------------------ |
+| `UTF8`              | UTF-8 encoding     |
+| `UTF16LE` (default) | UTF-16 LE encoding |
+
+> UTF-16 LE always has better performance because Windows uses it as its default Unicode encoding. `PixelBrush` defaults to UTF-16 LE for the same reason; encoding to any other format requires an extra conversion step.
+
+> `PixelBrush` does not optimize for file output — the file will contain ANSI escape sequences and the output size follows the original image dimensions, which can lead to very large files. Therefore, it is recommended to use `--color blackwhite` mode (which produces no color control sequences) with a brush that supports black & white mode, and to manually specify the output size with `--size` to prevent uncontrolled file growth.
+
+> When using shell redirection (e.g. `pixelbrush image.jpg > output.txt`), the output file may contain incorrect text because PowerShell's default encoding for redirection is unpredictable. Traditional Command Prompt does not have this issue.
 
 ## Examples
 
 ```bash
 pixelbrush photo.jpg -b block --color grayscale
 pixelbrush image.png -b symbols --size 80 40
-pixelbrush photo.bmp --color blackwhite > output.txt
+pixelbrush photo.bmp -c blackwhite -b shades > output.txt
 ```
