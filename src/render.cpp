@@ -164,7 +164,7 @@ render_ascii_art_impl(const RenderOpts &opts, std::span<CacheEntry> cache,
                     {
                     case OutputFormat::UTF8:
                     {
-                        if (auto conv = strutil::to_narrow(
+                        if (auto conv = strutil::narrow(
                                 std::wstring_view{buf.data(), static_cast<usize>(len)},
                                 utf8_buf);
                             !conv) [[unlikely]]

@@ -17,7 +17,7 @@ namespace strutil
 inline constexpr u8 MAX_UTF8_BYTES_PER_WCHAR{4};
 
 [[nodiscard]] inline auto
-to_narrow(std::wstring_view wsv, std::string &out) -> Result<void>
+narrow(std::wstring_view wsv, std::string &out) -> Result<void>
 {
     if (wsv.empty())
     {
@@ -46,15 +46,15 @@ to_narrow(std::wstring_view wsv, std::string &out) -> Result<void>
 }
 
 [[nodiscard]] inline auto
-to_narrow(std::wstring_view wsv) -> std::string
+narrow(std::wstring_view wsv) -> std::string
 {
     std::string out;
-    if (auto result = to_narrow(wsv, out); !result) return {};
+    if (auto result = narrow(wsv, out); !result) return {};
     return out;
 }
 
 [[nodiscard]] inline auto
-to_narrow(std::wstring_view wsv, std::span<char> buf) -> int
+narrow(std::wstring_view wsv, std::span<char> buf) -> int
 {
     if (wsv.empty() || buf.empty()) return 0;
     int len{WideCharToMultiByte(CP_UTF8, 0, wsv.data(), static_cast<int>(wsv.size()),
@@ -68,7 +68,7 @@ to_narrow(std::wstring_view wsv, std::span<char> buf) -> int
 }
 
 [[nodiscard]] inline auto
-to_wide(std::string_view sv, std::wstring &out) -> Result<void>
+widen(std::string_view sv, std::wstring &out) -> Result<void>
 {
     if (sv.empty())
     {
@@ -97,15 +97,15 @@ to_wide(std::string_view sv, std::wstring &out) -> Result<void>
 }
 
 [[nodiscard]] inline auto
-to_wide(std::string_view sv) -> std::wstring
+widen(std::string_view sv) -> std::wstring
 {
     std::wstring out;
-    if (auto result = to_wide(sv, out); !result) return {};
+    if (auto result = widen(sv, out); !result) return {};
     return out;
 }
 
 [[nodiscard]] inline auto
-to_wide(std::string_view sv, std::span<wchar_t> buf) -> int
+widen(std::string_view sv, std::span<wchar_t> buf) -> int
 {
     if (sv.empty() || buf.empty()) return 0;
     int len{MultiByteToWideChar(CP_UTF8, 0, sv.data(), static_cast<int>(sv.size()),
@@ -148,7 +148,7 @@ abspath(const std::wstring &path) -> Result<std::wstring>
     {
         std::string errmsg{last_system_errmsg()};
         return fail(ErrCode::FilePath,
-                    std::format("{} ({})", errmsg, strutil::to_narrow(path)));
+                    std::format("{} ({})", errmsg, strutil::narrow(path)));
     }
 
     fullpath.resize_and_overwrite(
@@ -162,7 +162,7 @@ abspath(const std::wstring &path) -> Result<std::wstring>
 
     if (fullpath.empty())
         return fail(ErrCode::FilePath,
-                    std::format("Failed to find file: {}", strutil::to_narrow(path)));
+                    std::format("Failed to find file: {}", strutil::narrow(path)));
     return fullpath;
 }
 
@@ -174,7 +174,7 @@ create_file(const std::wstring &path) -> Result<ScopedHandle>
     if (handle == INVALID_HANDLE_VALUE)
         return fail(ErrCode::FilePath,
                     std::format("Failed to create output file: {} ({})",
-                                strutil::to_narrow(path), last_system_errmsg()));
+                                strutil::narrow(path), last_system_errmsg()));
     return ScopedHandle{handle, true};
 }
 

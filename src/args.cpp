@@ -96,7 +96,7 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
 
     auto arg_strs =
         arguments |
-        std::views::transform([](auto wsv) -> auto { return strutil::to_narrow(wsv); }) |
+        std::views::transform([](auto wsv) -> auto { return strutil::narrow(wsv); }) |
         std::ranges::to<std::vector<std::string>>();
     auto arg_ptrs = arg_strs |
                     std::views::transform([](auto &s) -> auto { return s.data(); }) |
@@ -112,7 +112,7 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
     if (args.size[0] < 0 || args.size[1] < 0)
         return fail(ErrCode::InvalidArgs, "Image size must be positive");
 
-    args.image_path = strutil::to_wide(p_image_path);
+    args.image_path = strutil::widen(p_image_path);
     if (p_brush_name)
     {
         std::span<const char *const> span_brush_names{BRUSH_NAMES};
@@ -136,7 +136,7 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
     if (p_output_format && !p_output_path)
         return fail(ErrCode::InvalidArgs, "option '--format' requires '--output'");
 
-    if (p_output_path) args.output_path = strutil::to_wide(p_output_path);
+    if (p_output_path) args.output_path = strutil::widen(p_output_path);
 
     if (p_output_format)
     {

@@ -47,8 +47,8 @@ try
 catch (const winrt::hresult_error &e)
 {
     return fail(ErrCode::ImageCantLoad,
-                std::format("Failed to open image: {} ({})", strutil::to_narrow(path),
-                            strutil::to_narrow(e.message())));
+                std::format("Failed to open image: {} ({})", strutil::narrow(path),
+                            strutil::narrow(e.message())));
 }
 
 namespace
