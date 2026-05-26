@@ -8,16 +8,14 @@
 
 #include <algorithm>
 #include <array>
-#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 
 using namespace std::string_view_literals;
 
 auto
-Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
+Args::parse(Argon &argon, std::span<char *> arguments) -> Result<Args>
 {
     Args        args{};
     char       *p_image_path{nullptr};
@@ -93,17 +91,7 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
     argon.flags   = ARGON_COMBINED_MATCHING | ARGON_CASE_INSENSITIVE;
 
     if (arguments.size() < 2) return fail(ErrCode::MissingArgs, "Missing arguments");
-
-    auto arg_strs =
-        arguments |
-        std::views::transform([](auto wsv) -> auto { return strutil::narrow(wsv); }) |
-        std::ranges::to<std::vector<std::string>>();
-    auto arg_ptrs = arg_strs |
-                    std::views::transform([](auto &s) -> auto { return s.data(); }) |
-                    std::ranges::to<std::vector<char *>>();
-    arg_ptrs.emplace_back(nullptr);
-
-    if (argon_parse(&argon, arg_ptrs.data()) != ARGON_OK)
+    if (argon_parse(&argon, arguments.data()) != ARGON_OK)
         return fail(ErrCode::ParseArgs, std::string{static_cast<char *>(argon.errmsg)});
 
     // -- 后处理 --

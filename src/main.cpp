@@ -17,13 +17,13 @@
 static constexpr auto ERROR_PREFIX = "\x1b[1;37;41m ERROR \x1b[0m";
 
 auto
-wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
+main(int argc, char *argv[]) -> int
 {
     winrt::init_apartment();
     console::CpGuard cp_guard{};
 
     Argon argon{};
-    auto  args = Args::parse(argon, std::span(argv, argc));
+    auto  args = Args::parse(argon, std::span(argv, argc + 1));
     if (!args)
     {
         std::println("Usage: pixelbrush <image-path> [OPTIONS]\n");
