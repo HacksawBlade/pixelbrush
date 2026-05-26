@@ -5,6 +5,7 @@
 
 #include "argon.h"
 #include "base.h"
+#include "image.h"
 #include "render.h"
 
 #include <array>
@@ -16,6 +17,14 @@ inline constexpr const char *BRUSH_NAMES[] = {
     "block", "dot", "shades", "symbols", "letters", nullptr,
 };
 
+inline constexpr auto BRUSHES = std::to_array<std::wstring_view>({
+    L"█",
+    L"⬤",
+    L" ░▒▓█",
+    L" .:-=+*#%@",
+    L" .'`^\",:;Il!i~+_-?][}{1)(\\/,tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+});
+
 inline constexpr const char *COLOR_MODE_NAMES[] = {
     "truecolor", "tty16", "tty256", "grayscale", "blackwhite", nullptr,
 };
@@ -26,13 +35,11 @@ inline constexpr const char *OUTFMT_NAMES[] = {
     nullptr,
 };
 
-inline constexpr auto BRUSHES = std::to_array<std::wstring_view>({
-    L"█",
-    L"⬤",
-    L" ░▒▓█",
-    L" .:-=+*#%@",
-    L" .'`^\",:;Il!i~+_-?][}{1)(\\/,tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
-});
+inline constexpr const char *SCALE_MODE_NAMES[] = {
+    "Fant",
+    "Nearest",
+    nullptr,
+};
 
 class Args
 {
@@ -44,6 +51,7 @@ public:
     RenderColorMode    color_mode{RenderColorMode::TrueColor};
     std::wstring       output_path;
     OutputFormat       output_format{OutputFormat::UTF16LE};
+    ScaleMode          scale_mode{ScaleMode::Fant};
 
     Args() = default;
 

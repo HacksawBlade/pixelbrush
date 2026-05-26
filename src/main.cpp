@@ -78,6 +78,8 @@ wmain(int argc, wchar_t *argv[]) -> int // NOLINT(misc-use-internal-linkage)
         return EXIT_FAILURE;
     }
 
+    (void) image->scale_mode(args->scale_mode);
+
     u32 image_width{image->width()};
     u32 image_height{image->height()};
 

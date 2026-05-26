@@ -25,6 +25,7 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
     const char *p_color_mode{nullptr};
     const char *p_output_path{nullptr};
     const char *p_output_format{nullptr};
+    const char *p_scale_mode{nullptr};
 
     static auto opts = std::to_array<ArgonOption>({
         {
@@ -76,6 +77,14 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
             .desc        = "Output file format (default: UTF16LE)",
             .target      = static_cast<void *>(&p_output_format),
             .enum_plugin = {.enums = static_cast<const char *const *>(OUTFMT_NAMES)},
+        },
+        {
+            .fullname    = "scale-mode",
+            .alias       = 'm',
+            .type        = ARGON_OPTYPE_STRREF,
+            .desc        = "Image scaling algorithm (default: fant)",
+            .target      = static_cast<void *>(&p_scale_mode),
+            .enum_plugin = {.enums = static_cast<const char *const *>(SCALE_MODE_NAMES)},
         },
         {nullptr},
     });
@@ -137,6 +146,16 @@ Args::parse(Argon &argon, std::span<wchar_t *> arguments) -> Result<Args>
         {
             args.output_format =
                 static_cast<OutputFormat>(it - span_output_formats.begin());
+        }
+    }
+
+    if (p_scale_mode)
+    {
+        std::span<const char *const> span_scale_modes{SCALE_MODE_NAMES};
+        if (auto it = std::ranges::find(span_scale_modes, p_scale_mode);
+            it != span_scale_modes.end())
+        {
+            args.scale_mode = static_cast<ScaleMode>(it - span_scale_modes.begin());
         }
     }
 
