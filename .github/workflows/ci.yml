@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+
+      - name: Build
+        run: |
+          xmake f -c -m release
+          xmake build --yes
+
+      - name: Check formatting
+        run: clang-format --dry-run --Werror include/*.h src/*.cpp tools/*.cpp
