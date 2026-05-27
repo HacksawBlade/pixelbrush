@@ -6,7 +6,7 @@ add_includedirs("include")
 add_includedirs("vendor/libargon")
 set_warnings("all")
 
-set_version("0.1.0")
+set_version("1.1.0")
 
 option("bench")
     set_default(false)
