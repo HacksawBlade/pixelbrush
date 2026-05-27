@@ -1,16 +1,26 @@
 add_rules("mode.debug", "mode.release")
+
 set_languages("cxxlatest")
 set_encodings("utf-8")
 add_includedirs("include")
 add_includedirs("vendor/libargon")
 set_warnings("all")
 
+set_version("0.1.0")
+
+option("bench")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Enable benchmark render mode")
+
 target("pixelbrush")
     set_kind("binary")
     add_files("src/*.c", {languages = "c11"})
     add_files("src/*.cpp")
     add_syslinks("WindowsApp", "Ole32", "windowscodecs")
-    set_default(true)
+    if has_config("bench") then
+        add_defines("BENCH")
+    end
 
 target("gen_tty_maps")
     set_kind("binary")

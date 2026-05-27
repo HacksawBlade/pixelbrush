@@ -16,6 +16,12 @@
 #include <thread>
 #include <vector>
 
+#ifdef BENCH
+    #ifndef BENCH_RENDER
+        #define BENCH_RENDER
+    #endif
+#endif
+
 #ifdef BENCH_RENDER
     #include "benchmark.h"
 #endif
