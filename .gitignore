@@ -1,0 +1,10 @@
+# Xmake cache
+.cache/
+.vscode/
+.xmake/
+assets/
+build/
+release/
+
+.DS_Store
+pixelbrush*.zip

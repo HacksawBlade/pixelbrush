@@ -1,0 +1,44 @@
+---
+BasedOnStyle: LLVM
+UseTab: Never
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 80
+AccessModifierOffset: -4
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Right
+AlignOperands: Align
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+AllowAllArgumentsOnNextLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: All
+BreakAfterReturnType: AllDefinitions
+BreakBeforeBraces: Allman
+BreakTemplateDeclarations: Yes
+FixNamespaceComments: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^".*"$'
+    Priority: 1
+  - Regex: '^<(winsock2|ws2tcpip)\.h>$'
+    Priority: 2
+  - Regex: '^<windows\.h>$'
+    Priority: 3
+  - Regex: '^<(pathcch|psapi|shlobj|shellapi|dwmapi)\.h>$'
+    Priority: 4
+  - Regex: '^<.*>$'
+    Priority: 3
+IndentCaseLabels: false
+IndentExternBlock: false
+IndentPPDirectives: BeforeHash
+NamespaceIndentation: Inner
+PointerAlignment: Right
+SpaceAfterCStyleCast: true
+---
