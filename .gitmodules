@@ -1,3 +1,0 @@
-[submodule "vendor/libargon"]
-	path = vendor/libargon
-	url = https://github.com/HacksawBlade/libargon.git
