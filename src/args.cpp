@@ -3,6 +3,9 @@
 
 #include "args.h"
 
+#define ARGON_IMPLS
+
+#include "argon.h"
 #include "base.h"
 #include "utils.h"
 

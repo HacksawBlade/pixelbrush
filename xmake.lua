@@ -15,7 +15,6 @@ option("bench")
 
 target("pixelbrush")
     set_kind("binary")
-    add_files("src/*.c", {languages = "c11"})
     add_files("src/*.cpp")
     add_syslinks("WindowsApp", "Ole32", "windowscodecs")
     if has_config("bench") then
